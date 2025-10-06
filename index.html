@@ -110,6 +110,12 @@
                   townMessages = []
                   snapshot.forEach(doc => {
                     const msg = doc.data()
+                    if((msg.text.length > 50 && msgCount >= 3)){
+                      deleteLast3Messages(msg.username)
+                    }
+                    if(msg.text.length > 300){
+                      deleteLastMessage(msg.username)
+                    }
                     townMessages.push({ id: doc.id, msg: msg, moved: false })
                     if (!msg.text) return
                     let private = false
@@ -156,7 +162,7 @@
               })
               msgCount++
               if (msgCount >= 10) {
-  deleteLast10Messages(currentUser.username);
+  deleteLast10Messages(msg.username);
   db.collection("chats").doc("town_square").collection("messages").add({
     username: "🧹👴🏻 Spam Janitor",
     rank: "Bot",
@@ -254,6 +260,28 @@
     .get();
 
   const userMsgs = snap.docs.filter(doc => doc.data().username === username).slice(0, 10);
+  const batch = db.batch();
+  userMsgs.forEach(doc => batch.delete(doc.ref));
+  await batch.commit();
+}
+         async function deleteLast3Messages(username) {
+  const snap = await db.collection("chats").doc("town_square")
+    .collection("messages")
+    .orderBy("createdAt", "desc")
+    .get();
+
+  const userMsgs = snap.docs.filter(doc => doc.data().username === username).slice(0, 3);
+  const batch = db.batch();
+  userMsgs.forEach(doc => batch.delete(doc.ref));
+  await batch.commit();
+}
+         async function deleteLastMessage(username) {
+  const snap = await db.collection("chats").doc("town_square")
+    .collection("messages")
+    .orderBy("createdAt", "desc")
+    .get();
+
+  const userMsgs = snap.docs.filter(doc => doc.data().username === username).slice(0, 1);
   const batch = db.batch();
   userMsgs.forEach(doc => batch.delete(doc.ref));
   await batch.commit();
