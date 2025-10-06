@@ -19,7 +19,6 @@
         <button id="sender">Send Message</button>
         <div id="messages" style="color: white; margin-top: 10px;"></div>
       </div>
-      <br><br>
       <button id="plant" style="background-color: chartreuse; color: brown; display: none;">Visit Power Plant</button>
       <div id="power">
         <h2 style="color: brown;">Welcome to the Power Plant</h2>
@@ -160,7 +159,7 @@
   deleteLast10Messages(currentUser.username);
   db.collection("chats").doc("town_square").collection("messages").add({
     username: "🧹👴🏻 Spam Janitor",
-    rank: "System",
+    rank: "Bot",
     text: `${currentUser.username}, WHY ARE YOU GIVING ME SO MUCH TO CLEAN UP?!`,
     createdAt: firebase.firestore.FieldValue.serverTimestamp()
   });
@@ -298,31 +297,31 @@ window.addEventListener("keydown",function(e){
         html, body {
   margin: 0;
   padding: 0;
-  background-color: black
+  background-color: gray;
 }
 canvas {
   display: block;
 }
 #login{
-  width: 100px;
+  width: 383px;
   height: 50px;
   background-color: darkred;
   color: red;
 }
 #login:hover{
-  width: 100px;
+  width: 383px;
   height: 50px;
     background-color: salmon;
   color: darkred;
 }
-#signup{
-  width: 100px;
+ #signup{
+  width: 383px;
   height: 50px;
     background-color: salmon;
   color: darkred;
 }
 #signup:hover{
-  width: 100px;
+  width: 383px;
   height: 50px;
     background-color: darkred;
   color: red;
