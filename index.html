@@ -14,7 +14,7 @@
       <button id="signup">Sign up</button>
 
       <div id="townSquare">
-        <h2 style="color: tan;">Welcome to the Town Square</h2>
+        <h2 id="energyboard" style="color: tan;">Welcome to the Town Square! The town currently has 0 energy.</h2>
         <textarea id="message" placeholder="Type a message..."></textarea>
         <button id="sender">Send Message</button>
         <div id="messages" style="color: white; margin-top: 10px;"></div>
@@ -32,6 +32,7 @@
       <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
       <script>
+        let energy = 0
         let msgCount = 0
         let townMessages = []
         let atPlant = false
@@ -128,17 +129,7 @@
                       if (!private) p.textContent = `[${msg.rank}] ${displayName}: ${msg.text}`
                       else p.textContent = `🔒 Private from [${msg.rank}] ${displayName}: ${msg.text}`
                     } else {
-                      currentUser.warnings++
-                      db.collection("users").doc(currentUser.uid).update({ warnings: currentUser.warnings })
-                      if (currentUser.warnings === 3) {
-                        currentUser.username += " the rule breaker"
-                        db.collection("users").doc(currentUser.uid).update({ username: currentUser.username })
-                      } else if (currentUser.warnings === 6) {
-                        currentUser.banned = true
-                        currentUser.username = "[Banned user]"
-                        db.collection("users").doc(currentUser.uid).update({ banned: currentUser.banned, username: currentUser.username })
-                      }
-                      p.textContent = `[Bot] [🚨🤬Cursing Police]: Hey, ${currentUser.username}, that was a no-no word.`
+                      p.textContent = `[Bot] [🚨🤬Cursing Police]: Hey, ${msg.username}, that was a no-no word.`
                     }
                     container.appendChild(p)
                   })
@@ -250,6 +241,7 @@
               message.msg.moved = true
               db.collection("chats").doc("power_plant").collection("messages").add(message.msg)
               db.collection("chats").doc("town_square").collection("messages").doc(message.id).delete()
+              energy++
             }
           }
         }, 100)
@@ -291,7 +283,7 @@ window.addEventListener("keydown",function(e){
   db.collection("chats").doc("town_square").collection("messages").add({
     username: "🧹👴🏻 Spam Janitor",
     rank: "Bot",
-    text: `${currentUser.username}, WHY ARE YOU GIVING ME SO MUCH TO CLEAN UP?!`,
+    text: `${msg.username}, WHY ARE YOU GIVING ME SO MUCH TO CLEAN UP?!`,
     createdAt: firebase.firestore.FieldValue.serverTimestamp()
   });
   msgCount = 0; 
