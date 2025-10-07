@@ -285,7 +285,7 @@ function renderTown(messages) {
     const ts = m.createdAt?.toDate ? m.createdAt.toDate() : null;
     const when = ts ? ` · ${ts.toLocaleString()}` : "";
     p.innerHTML = `<strong>${m.username}</strong> <em>(${m.rank || "Member"})</em>${when}<br>${escapeHtml(m.text || "")}`;
-    messagesDiv.appendChild(p);
+    messagesDiv.insertBefore(p,messagesDiv.firstChild);
   });
 }
 
