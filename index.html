@@ -236,7 +236,7 @@ async function sendMessage() {
     await deleteLastNMessages(user.username, 10);
     warn(auth.currentUser.uid, "sending a likely spammy message");
     msgCount = 0;
-  } else if (msgCount >= countLim2 && msgLim2) {
+  } else if (msgCount >= countLim2 && text.length > msgLim2) {
     await deleteLastNMessages(user.username, 3);
     warn(auth.currentUser.uid, "sending many large messages quickly");
     msgCount = 0;
