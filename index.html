@@ -1,36 +1,38 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <title>🔥 Flamechat</title>
-    <link rel="stylesheet" href="style.css" />
-  </head>
-  <body>
-    <main>
-      <h1 style="background-color: darkred; color: orange">
-        🔥 Flamechat - Secure Chatting Community Platform
-      </h1>
-      <button id="login">Log in</button>
-      <button id="signup">Sign up</button>
+<head>
+  <meta charset="utf-8" />
+  <title>🔥 Flamechat</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main>
+    <h1 style="background-color: darkred; color: orange">
+      🔥 Flamechat - Secure Chatting Community Platform
+    </h1>
+    <button id="login">Log in</button>
+    <button id="signup">Sign up</button>
 
-      <div id="townSquare">
-        <h2 id="energyboard" style="color: tan;">Welcome to the Town Square! The town currently has 0 energy.</h2>
-        <textarea id="message" placeholder="Type a message..."></textarea>
-        <button id="sender">Send Message</button>
-        <div id="messages" style="color: white; margin-top: 10px;"></div>
-      </div>
-      <button id="plant" style="background-color: chartreuse; color: brown; display: none;">Visit Power Plant</button>
-      <div id="power">
-        <h2 style="color: brown;">Welcome to the Power Plant</h2>
-        <h3 style="color: brown;">Messages whose half lives have passed will appear here.</h3>
-        <div id="messages2" style="color: white; margin-top: 10px;"></div>
-      </div>
+    <div id="townSquare">
+      <h2 id="energyboard" style="color: tan;">Welcome to the Town Square! ⚡️0</h2>
+      <textarea id="message" placeholder="Type a message... (Shift+Enter = newline)"></textarea>
+      <button id="sender">Send Message</button>
+      <div id="messages" style="color: white; margin-top: 10px;"></div>
+    </div>
 
-      <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-      <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-      <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <button id="plant" style="background-color: chartreuse; color: brown; display: none;">Visit Power Plant</button>
+    <div id="power">
+      <h2 style="color: brown;">Welcome to the Power Plant</h2>
+      <h3 style="color: brown;">Messages whose half-lives have passed appear here.</h3>
+      <div id="messages2" style="color: white; margin-top: 10px;"></div>
+    </div>
 
-      <script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <script>
+
 const firebaseConfig = {
   apiKey: "AIzaSyBUsDxbGq9LvRNSlebdpXpRHnEXAn879Wc",
   authDomain: "flamechat-1a663.firebaseapp.com",
@@ -43,294 +45,307 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const auth = firebase.auth();
-const statsRef = db.collection("chats").doc("town_square").collection("stats").doc("stats");
+
 const energyBoard = document.getElementById("energyboard");
+const plantBtn = document.getElementById("plant");
+const msgInput = document.getElementById("message");
+const sendBtn = document.getElementById("sender");
+const town = document.getElementById("townSquare");
+const power = document.getElementById("power");
+const messagesDiv = document.getElementById("messages");
+const plantDiv = document.getElementById("messages2");
+
+let currentUser = null;
 let energy = 0;
 let lastSavedEnergy = 0;
 let msgCount = 0;
-let townMessages = [];
 let atPlant = false;
-const plant = document.getElementById("plant");
+
+const statsRef = db.collection("chats").doc("town_square").collection("stats").doc("stats");
+const msgsRef  = db.collection("chats").doc("town_square").collection("messages");
+const usersRef = db.collection("users");
+
 const bannedWords = ["fuck","blowjob","dick","pussy","ass","balls","cunt","nigger","nigga","milf","sex","bitch","cock","suck","cum","shit","penis","vulva","vagina","boob","boobs","boobies"];
-let currentUser = null;
-statsRef.get().then(doc => {
-  if (doc.exists && doc.data().energy !== undefined) {
-    energy = doc.data().energy;
-  } else {
-    energy = 0;
+
+function updateEnergyDisplay(val) {
+  energyBoard.textContent = `Welcome to the Town Square! ⚡️${val}`;
+}
+function setEnergy(val) {
+  energy = Math.max(0, val|0);
+  updateEnergyDisplay(energy);
+}
+function incEnergy(delta) {
+  setEnergy(energy + delta);
+}
+function sanitize(str) { return (str || "").trim(); }
+function hasProfanity(str){
+  const low = str.toLowerCase();
+  return bannedWords.some(w => low.includes(w));
+}
+function nowMs(){ return Date.now(); }
+
+function parseMessage(raw) {
+  let halfLife = null;
+  let text = raw;
+
+  const tagStart = text.indexOf("#hl ");
+  if (tagStart !== -1) {
+    const hashAfter = text.indexOf("#", tagStart + 1);
+    const segment = hashAfter !== -1 ? text.slice(tagStart + 1, hashAfter) : text.slice(tagStart + 1);
+    text = hashAfter !== -1 ? text.replace(text.slice(tagStart, hashAfter + 1), "") : text.replace(text.slice(tagStart), "");
+    const parts = segment.trim().split(/\s+/); 
+    if (parts[1]) {
+      const v = parts[1].toLowerCase();
+      if (v.endsWith("h")) halfLife = parseFloat(v) * 60 * 60 * 1000;
+      else if (v.endsWith("m")) halfLife = parseFloat(v) * 60 * 1000;
+      else if (v.endsWith("s")) halfLife = parseFloat(v) * 1000;
+      else halfLife = parseFloat(v) * 1000;
+    }
   }
-  energyBoard.textContent = "Welcome to Town Square! ⚡️" + energy;
-}).catch(err => {
-  energyBoard.textContent = "Welcome to Town Square! ⚡️0";
-});
-function updateEnergy(newValue) {
-  energy = newValue;
-  energyBoard.textContent = "Welcome to Town Square! ⚡️" + energy;
+  return [[], sanitize(text), halfLife];
 }
 setInterval(() => {
   if (energy !== lastSavedEnergy) {
-    statsRef.set({ energy: energy }, { merge: true });
+    statsRef.set({ energy }, { merge: true });
     lastSavedEnergy = energy;
   }
 }, 10000);
-document.getElementById("signup").addEventListener("click", () => {
-  const email = prompt("Enter email:");
-  const password = prompt("Enter password:");
-  const username = prompt("Enter username:");
-  auth.createUserWithEmailAndPassword(email, password)
-    .then(userCred => {
-      const uid = userCred.user.uid;
-      return db.collection("users").get().then(snapshot => {
-        let rank = "Member";
-        if (snapshot.size === 0) rank = "Head Admin";
-        return db.collection("invites").doc(uid).set({
-          email, username, rank, warnings: 0, banned: false
-        });
-      });
-    })
-    .then(() => alert("✅ Signed up as " + username))
-    .catch(err => alert("❌ " + err.message));
-});
-document.getElementById("login").addEventListener("click", () => {
-  const email = prompt("Enter email:");
-  const password = prompt("Enter password:");
-  auth.signInWithEmailAndPassword(email, password)
-    .then(() => {
-      const uid = auth.currentUser.uid;
-      return db.collection("users").doc(uid).get();
-    })
-    .then(doc => {
-      if (doc.exists) {
-        currentUser = doc.data();
-        currentUser.uid = auth.currentUser.uid;
-        alert("✅ Logged in as " + currentUser.username);
-        document.getElementById("signup").style.display = "none";
-        document.getElementById("login").style.display = "none";
-        document.getElementById("townSquare").style.display = "block";
-        if (currentUser.rank.includes("Admin")) plant.style.display = "block";
-      }
-    })
-    .catch(err => alert("❌ " + err.message));
-});
-document.getElementById("sender").addEventListener("click", () => {
-  const text = document.getElementById("message").value.trim();
-  if (text === "") return;
-  const user = auth.currentUser;
-  if (!user) return alert("❌ Please log in first");
-  const uid = user.uid;
-  db.collection("users").doc(uid).get().then(doc => {
-    if (doc.exists) {
-      const userData = doc.data();
-      const username = userData.username;
-      const rank = userData.rank;
-      let [recipients, text1, halfLife] = parseMessage(text);
-      db.collection("chats").doc("town_square").collection("messages").add({
-        halfLife, recipients, text: text1, username, rank,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-      updateEnergy(energy + 1);
-      msgCount++;
-      const words = doc.data.text1.split(" ")
-      if(words.length === 1 && words[0].length < 45 ||words.length > 1 && words.some(word => {
-        return word.length > 15
-      })){
-        deleteLastMessage(username)
-        db.collection("chats").doc("town_square").collection("messages").add({
-          username: "🧹👴🏻 Spam Janitor",
-          rank: "Bot",
-          text: `${username}, WHY ARE YOU GIVING ME SO MUCH TO CLEAN UP?!`,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        msgCount = 0;
-      }
-      if(doc.data().text.length > 550){
-        deleteLast10Messages(username);
-        db.collection("chats").doc("town_square").collection("messages").add({
-          username: "🧹👴🏻 Spam Janitor",
-          rank: "Bot",
-          text: `${username}, WHY ARE YOU GIVING ME SO MUCH TO CLEAN UP?!`,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        msgCount = 0;
-      }
-      if(msgCount >= 3 && doc.data().text.length > 75){
-        deleteLast3Messages(username);
-        db.collection("chats").doc("town_square").collection("messages").add({
-          username: "🧹👴🏻 Spam Janitor",
-          rank: "Bot",
-          text: `${username}, WHY ARE YOU GIVING ME SO MUCH TO CLEAN UP?!`,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        msgCount = 0;
-      }
-      if (msgCount >= 10) {
-        deleteLast10Messages(username);
-        db.collection("chats").doc("town_square").collection("messages").add({
-          username: "🧹👴🏻 Spam Janitor",
-          rank: "Bot",
-          text: `${username}, WHY ARE YOU GIVING ME SO MUCH TO CLEAN UP?!`,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        msgCount = 0;
-      }
-      document.getElementById("message").value = "";
-    }
-  });
-});
-function parseMessage(raw) {
-  let recipients = [];
-  let halfLife = null;
-  let text = raw;
-  if (raw.includes("#hl")) {
-    const start = raw.indexOf("#hl ");
-    if (start !== -1) {
-      const end = raw.indexOf("#", start + 1);
-      let tagSegment = "";
-      if (end !== -1) {
-        tagSegment = raw.slice(start + 1, end);
-        text = text.replace(raw.slice(start, end + 1), "");
-      } else {
-        tagSegment = raw.slice(start + 1);
-        text = text.replace(raw.slice(start), "");
-      }
-      const parts = tagSegment.trim().split(" ");
-      if (parts[1].toLowerCase().includes("h")) halfLife = parseFloat(parts[1]) * 60 * 60 * 1000;
-      else if (parts[1].toLowerCase().includes("m")) halfLife = parseFloat(parts[1]) * 60 * 1000;
-      else if (parts[1].toLowerCase().includes("s")) halfLife = parseFloat(parts[1]) * 1000;
-      else halfLife = parseFloat(parts[1]) * 1000;
-    }
-  }
-  text = text.trim();
-  return [recipients, text, halfLife];
-}
-plant.addEventListener("click", () => {
-  if (!atPlant) {
-    plant.innerHTML = "Go back to town";
-    atPlant = true;
-    document.getElementById("townSquare").style.display = "none";
-    document.getElementById("power").style.display = "block";
-  } else {
-    atPlant = false;
-    plant.innerHTML = "Visit Power Plant";
-    document.getElementById("townSquare").style.display = "block";
-    document.getElementById("power").style.display = "none";
-  }
-});
-setInterval(function(){ msgCount = 0; },60000);
-async function deleteLast10Messages(username) {
-  updateEnergy(energy-10)
-  const snap = await db.collection("chats").doc("town_square").collection("messages").orderBy("createdAt", "desc").get();
-  const userMsgs = snap.docs.filter(doc => doc.data().username === username).slice(0, 10);
-  const batch = db.batch();
-  userMsgs.forEach(doc => batch.delete(doc.ref));
-  await batch.commit();
-}
-        async function deleteLastMessage(username) {
-  updateEnergy(energy-1)
-  const snap = await db.collection("chats").doc("town_square").collection("messages").orderBy("createdAt", "desc").get();
-  const userMsgs = snap.docs.filter(doc => doc.data().username === username).slice(0, 1);
-  const batch = db.batch();
-  userMsgs.forEach(doc => batch.delete(doc.ref));
-  await batch.commit();
-}
-        async function deleteLast3Messages(username) {
-  updateEnergy(energy-3)
-  const snap = await db.collection("chats").doc("town_square").collection("messages").orderBy("createdAt", "desc").get();
-  const userMsgs = snap.docs.filter(doc => doc.data().username === username).slice(0, 3);
-  const batch = db.batch();
-  userMsgs.forEach(doc => batch.delete(doc.ref));
-  await batch.commit();
-}
-window.addEventListener("keydown",function(e){
-  if(e.key==="Enter"){
-    const text = document.getElementById("message").value.trim();
-    if (text === "") return;
-    const user = auth.currentUser;
-    if (!user) return alert("❌ Please log in first");
-    const uid = user.uid;
-    db.collection("users").doc(uid).get().then(doc => {
-      if (doc.exists) {
-        const userData = doc.data();
-        const username = userData.username;
-        const rank = userData.rank;
-        let [recipients, text1, halfLife] = parseMessage(text);
-        db.collection("chats").doc("town_square").collection("messages").add({
-          halfLife, recipients, text: text1, username, rank,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        msgCount++;
-        if (msgCount >= 10) {
-          deleteLast10Messages(currentUser.username);
-          db.collection("chats").doc("town_square").collection("messages").add({
-            username: "🧹👴🏻 Spam Janitor",
-            rank: "Bot",
-            text: `${username}, WHY ARE YOU GIVING ME SO MUCH TO CLEAN UP?!`,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-          });
-          msgCount = 0;
-        }
-        document.getElementById("message").value = "";
-      }
-    });
-  }
-});
-</script>
 
-      <style>
-        html, body {
+statsRef.onSnapshot(snap => {
+  const serverEnergy = (snap.exists && typeof snap.data().energy === "number") ? snap.data().energy : 0;
+  setEnergy(serverEnergy);
+  lastSavedEnergy = serverEnergy;
+});
+
+document.getElementById("signup").addEventListener("click", async () => {
+  try {
+    const email = prompt("Enter email:");
+    const password = prompt("Enter password:");
+    const username = prompt("Enter username:");
+    if (!email || !password || !username) return;
+
+    const cred = await auth.createUserWithEmailAndPassword(email, password);
+    const uid = cred.user.uid;
+
+    const allUsers = await usersRef.get();
+    const rank = allUsers.size === 0 ? "Head Admin" : "Member";
+
+    await usersRef.doc(uid).set({
+      email, username, rank, warnings: 0, banned: false,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    alert("✅ Signed up as " + username);
+  } catch (err) {
+    alert("❌ " + err.message);
+  }
+});
+
+document.getElementById("login").addEventListener("click", async () => {
+  try {
+    const email = prompt("Enter email:");
+    const password = prompt("Enter password:");
+    if (!email || !password) return;
+
+    await auth.signInWithEmailAndPassword(email, password);
+    const uid = auth.currentUser.uid;
+    const doc = await usersRef.doc(uid).get();
+    if (!doc.exists) throw new Error("User profile not found. Please sign up again.");
+
+    currentUser = { uid, ...doc.data() };
+
+    alert("✅ Logged in as " + currentUser.username);
+    document.getElementById("signup").style.display = "none";
+    document.getElementById("login").style.display = "none";
+    town.style.display = "block";
+    if ((currentUser.rank || "").includes("Admin")) plantBtn.style.display = "block";
+  } catch (err) {
+    alert("❌ " + err.message);
+  }
+});
+
+async function sendMessage() {
+  const textRaw = sanitize(msgInput.value);
+  if (!textRaw) return;
+  if (!auth.currentUser) return alert("❌ Please log in first");
+
+  const userDoc = await usersRef.doc(auth.currentUser.uid).get();
+  if (!userDoc.exists) return alert("❌ User profile missing");
+  const user = userDoc.data();
+  if (user.banned) return alert("🚫 You are banned.");
+
+  if (hasProfanity(textRaw)) {
+
+    await msgsRef.add({
+      username: "👮‍♂️ Cursing Police",
+      rank: "Bot",
+      text: `${user.username}, watch your language.`,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    setEnergy(Math.max(0, energy - 1));
+    msgInput.value = "";
+    return;
+  }
+
+  let [recipients, text, halfLife] = parseMessage(textRaw);
+  
+  const words = text.split(/\s+/).filter(Boolean);
+  const tooLongSingle = (words.length === 1 && words[0].length > 45);
+  const anyWordTooLong = (words.length > 1 && words.some(w => w.length > 30));
+  const tooLongMsg = text.length > 550;
+
+  // Add message
+  const msgRef = await msgsRef.add({
+    halfLife: halfLife || null,
+    recipients,
+    text,
+    username: user.username,
+    rank: user.rank,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+
+  incEnergy(1);
+  msgCount++;
+
+  if (tooLongSingle || anyWordTooLong) {
+    await deleteLastNMessages(user.username, 1);
+    await botJanitor(user.username);
+    msgCount = 0;
+  } else if (tooLongMsg) {
+    await deleteLastNMessages(user.username, 10);
+    await botJanitor(user.username);
+    msgCount = 0;
+  } else if (msgCount >= 3 && text.length > 75) { 
+    await deleteLastNMessages(user.username, 3);
+    await botJanitor(user.username);
+    msgCount = 0;
+  } else if (msgCount >= 10) {
+    await deleteLastNMessages(user.username, 10);
+    await botJanitor(user.username);
+    msgCount = 0;
+  }
+
+  msgInput.value = "";
+}
+
+async function botJanitor(username) {
+  await msgsRef.add({
+    username: "🧹👴🏻 Spam Janitor",
+    rank: "Bot",
+    text: `${username}, WHY ARE YOU GIVING ME SO MUCH TO CLEAN UP?!`,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+}
+
+async function deleteLastNMessages(username, n) {
+  incEnergy(-n);
+
+  const snap = await msgsRef.orderBy("createdAt", "desc").limit(200).get();
+  const userMsgs = snap.docs.filter(d => (d.data().username === username)).slice(0, n);
+  if (userMsgs.length === 0) return;
+
+  const batch = db.batch();
+  userMsgs.forEach(d => batch.delete(d.ref));
+  await batch.commit();
+}
+
+sendBtn.addEventListener("click", sendMessage);
+window.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+});
+
+setInterval(() => { msgCount = 0; }, 60000);
+
+plantBtn.addEventListener("click", () => {
+  atPlant = !atPlant;
+  plantBtn.textContent = atPlant ? "Go back to town" : "Visit Power Plant";
+  town.style.display = atPlant ? "none" : "block";
+  power.style.display = atPlant ? "block" : "none";
+});
+
+function renderTown(messages) {
+  messagesDiv.innerHTML = "";
+  messages.forEach(m => {
+    const p = document.createElement("p");
+    const ts = m.createdAt?.toDate ? m.createdAt.toDate() : null;
+    const when = ts ? ` · ${ts.toLocaleString()}` : "";
+    p.innerHTML = `<strong>${m.username}</strong> <em>(${m.rank || "Member"})</em>${when}<br>${escapeHtml(m.text || "")}`;
+    messagesDiv.appendChild(p);
+  });
+}
+
+function renderPlant(messages) {
+  plantDiv.innerHTML = "";
+  messages.forEach(m => {
+    const p = document.createElement("p");
+    const ts = m.createdAt?.toDate ? m.createdAt.toDate() : null;
+    const when = ts ? ` · ${ts.toLocaleString()}` : "";
+    const hl = m.halfLife ? ` · half-life ${Math.round(m.halfLife/1000)}s` : "";
+    p.innerHTML = `<strong>${m.username}</strong> <em>(${m.rank || "Member"})</em>${when}${hl}<br>${escapeHtml(m.text || "")}`;
+    plantDiv.appendChild(p);
+  });
+}
+
+function escapeHtml(s){
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+msgsRef.orderBy("createdAt","asc").onSnapshot(snap => {
+  const all = [];
+  snap.forEach(d => all.push({ id: d.id, ...d.data() }));
+
+  const now = nowMs();
+  const townMsgs = [];
+  const plantMsgs = [];
+
+  for (const m of all) {
+    const created = m.createdAt?.toMillis ? m.createdAt.toMillis() : null;
+    if (m.halfLife && created) {
+      const age = now - created;
+      if (age >= m.halfLife) plantMsgs.push(m);
+      else townMsgs.push(m);
+    } else {
+      townMsgs.push(m);
+    }
+  }
+
+  renderTown(townMsgs);
+  renderPlant(plantMsgs);
+});
+    </script>
+
+    <style>
+html, body {
   margin: 0;
   padding: 0;
   background-color: gray;
 }
-canvas {
-  display: block;
-}
-#login{
-  width: 383px;
+#login, #signup, #sender {
   height: 50px;
-  background-color: darkred;
-  color: red;
+  border: none;
+  cursor: pointer;
 }
-#login:hover{
-  width: 383px;
-  height: 50px;
-    background-color: salmon;
-  color: darkred;
+#login {
+  width: 383px; background-color: darkred; color: red;
 }
- #signup{
-  width: 383px;
-  height: 50px;
-    background-color: salmon;
-  color: darkred;
+#login:hover { background-color: salmon; color: darkred; }
+#signup {
+  width: 383px; background-color: salmon; color: darkred;
 }
-#signup:hover{
-  width: 383px;
-  height: 50px;
-    background-color: darkred;
-  color: red;
+#signup:hover { background-color: darkred; color: red; }
+#sender {
+  width: 140px; height: 40px; background-color: darkred; color: red;
 }
-#sender{
-  width: 100px;
-  height: 33px;
-  background-color: darkred;
-  color: red;
+#sender:hover { background-color: salmon; color: darkred; }
+#townSquare { display: none; background-color: brown; padding: 10px; }
+#power { display: none; background-color: chartreuse; padding: 10px; }
+#message {
+  width: 100%; max-width: 700px; min-height: 80px; padding: 8px; box-sizing: border-box;
 }
-#sender:hover{
-   width: 100px;
-  height: 33px;
-  background-color: salmon;
-  color: darkred;
-}
-#townSquare{
-  display: none;
-  background-color: brown;
-}
-#power{
-  display: none;
-  background-color: chartreuse;
-}
-
-      </style>
-    </main>
-  </body>
+    </style>
+  </main>
+</body>
 </html>
