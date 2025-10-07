@@ -14,7 +14,7 @@
     <button id="signup">Sign up</button>
 
     <div id="townSquare">
-      <h2 id="energyboard" style="color: tan;">Welcome to the Town Square! ⚡️0</h2>
+      <h2 id="energyboard" style="color: tan;">Welcome to the Town Square! ⚡️0 🔥0</h2>
       <textarea id="message" placeholder="Type a message... (Shift+Enter = newline)"></textarea>
       <button id="sender">Send Message</button>
       <div id="messages" style="color: white; margin-top: 10px;"></div>
@@ -32,7 +32,13 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
     <script>
+let mutedUntil = null
+const today = new Date().toDateString()
+localStorage.setItem("embers",0)
+let embers = localStorage.getItem("embers")||0
 
+let streak = localStorage.getItem("streak")||0
+let lastLogin = localStorage.getItem("lastLogin")||today
 const firebaseConfig = {
   apiKey: "AIzaSyBUsDxbGq9LvRNSlebdpXpRHnEXAn879Wc",
   authDomain: "flamechat-1a663.firebaseapp.com",
@@ -65,14 +71,14 @@ const statsRef = db.collection("chats").doc("town_square").collection("stats").d
 const msgsRef  = db.collection("chats").doc("town_square").collection("messages");
 const usersRef = db.collection("users");
 
-const bannedWords = ["fuck","blowjob","dick","pussy","ass","balls","cunt","nigger","nigga","milf","sex","bitch","cock","suck","cum","shit","penis","vulva","vagina","boob","boobs","boobies"];
+const bannedWords = ["fuck","blowjob","dick","pussy","ass","balls","cunt","nigger","nigga","milf","sex","bitch","cock","suck","cum","shit","penis","vulva","vagina","boob","boobs","boobies","cuck","fag","faggot","faggots"];
 
-function updateEnergyDisplay(val) {
-  energyBoard.textContent = `Welcome to the Town Square! ⚡️${val}`;
+function updateEnergyDisplay(val,val2) {
+  energyBoard.textContent = `Welcome to the Town Square! ⚡️${val}🔥${val2}`;
 }
 function setEnergy(val) {
   energy = Math.max(0, val|0);
-  updateEnergyDisplay(energy);
+  updateEnergyDisplay(energy,embers);
 }
 function incEnergy(delta) {
   setEnergy(energy + delta);
@@ -131,7 +137,7 @@ document.getElementById("signup").addEventListener("click", async () => {
     const rank = allUsers.size === 0 ? "Head Admin" : "Member";
 
     await usersRef.doc(uid).set({
-      email, username, rank, warnings: 0, banned: false,
+      email, username, rank, warnings: 0, banned: false, mutedUntil: 0,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
 
@@ -165,6 +171,10 @@ document.getElementById("login").addEventListener("click", async () => {
 });
 
 async function sendMessage() {
+  if(mutedUntil > Date.now()){
+    alert("🚫 You are muted.")
+    return
+  }
   const textRaw = sanitize(msgInput.value);
   if (!textRaw) return;
   if (!auth.currentUser) return alert("❌ Please log in first");
@@ -175,16 +185,8 @@ async function sendMessage() {
   if (user.banned) return alert("🚫 You are banned.");
 
   if (hasProfanity(textRaw)) {
-
-    await msgsRef.add({
-      username: "👮‍♂️ Cursing Police",
-      rank: "Bot",
-      text: `${user.username}, watch your language.`,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    setEnergy(Math.max(0, energy - 1));
-    msgInput.value = "";
-    return;
+     warn(auth.currentUser.uid,"Use of no-no words")
+    return
   }
 
   let [recipients, text, halfLife] = parseMessage(textRaw);
@@ -194,7 +196,6 @@ async function sendMessage() {
   const anyWordTooLong = (words.length > 1 && words.some(w => w.length > 30));
   const tooLongMsg = text.length > 550;
 
-  // Add message
   const msgRef = await msgsRef.add({
     halfLife: halfLife || null,
     recipients,
@@ -203,38 +204,29 @@ async function sendMessage() {
     rank: user.rank,
     createdAt: firebase.firestore.FieldValue.serverTimestamp()
   });
-
+  grantDailyEmbers()
   incEnergy(1);
   msgCount++;
 
   if (tooLongSingle || anyWordTooLong) {
     await deleteLastNMessages(user.username, 1);
-    await botJanitor(user.username);
+    warn(auth.currentUser.uid,"use of nonsense words for spammy purposes")
     msgCount = 0;
   } else if (tooLongMsg) {
     await deleteLastNMessages(user.username, 10);
-    await botJanitor(user.username);
+    warn(auth.currentUser.uid,"sending a likely spammy message")
     msgCount = 0;
   } else if (msgCount >= 3 && text.length > 75) { 
     await deleteLastNMessages(user.username, 3);
-    await botJanitor(user.username);
+    warn(auth.currentUser.uid,"sending many large messages in a short period of time")
     msgCount = 0;
   } else if (msgCount >= 10) {
     await deleteLastNMessages(user.username, 10);
-    await botJanitor(user.username);
+    warn(auth.currentUser.uid,"flooding the chat")
     msgCount = 0;
   }
 
   msgInput.value = "";
-}
-
-async function botJanitor(username) {
-  await msgsRef.add({
-    username: "🧹👴🏻 Spam Janitor",
-    rank: "Bot",
-    text: `${username}, WHY ARE YOU GIVING ME SO MUCH TO CLEAN UP?!`,
-    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-  });
 }
 
 async function deleteLastNMessages(username, n) {
@@ -315,6 +307,39 @@ msgsRef.orderBy("createdAt","asc").onSnapshot(snap => {
   renderTown(townMsgs);
   renderPlant(plantMsgs);
 });
+function grantDailyEmbers(){
+  if(lastLogin !== today){
+   const yesterday = new Date(Date.now() - 86400000).toDateString()
+   streak = (lastLogin === yesterday) ? streak + 1 : 1
+     streak = 1
+    const reward = 2 ** (streak - 1)
+    embers += reward
+    localStorage.setItem("streak",streak)
+    localStorage.setItem("embers",embers)
+    localStorage.setItem("lastLogin",today)
+  }
+}
+async function warn(uid,reason){
+  const userRef = usersRef.doc(uid)
+  const userSnap = await userRef.get()
+  if(!userSnap.exists) return
+  const data = userSnap.data()
+  let warnings = (data.warnings || 0) + 1
+  mutedUntil = data.mutedUntil || 0
+  let muteMsg = ""
+  if(warnings % 3 === 0){
+    const duration = 60000 * warnings
+    mutedUntil = Date.now() + duration
+    muteMsg = "Muted for "+10*warnings+" minutes."
+  }
+  await userRef.update({warnings, mutedUntil})
+  await msgsRef.add({
+    username: "🧑‍⚖️ Town Judge",
+    rank: "Bot",
+    text: `${data.username} received a warning (${reason}). ${muteMsg}`,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+  });
+}
     </script>
 
     <style>
