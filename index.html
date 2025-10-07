@@ -20,6 +20,15 @@
       <div id="messages" style="color: white; margin-top: 10px;"></div>
     </div>
 
+    <div id="shopBtns" style="display: none;">
+      <button id="adrBtn" style="width: 300px; height: 150px; background-color: red; color: orange;">
+        Buy Adrenaline Rush (4 embers) — Spam rules become more lenient for you and you only for 10 minutes.
+      </button>
+    </div>
+
+    <br>
+    <button id="shop" style="display: none;">View Item Shop</button>
+
     <button id="plant" style="background-color: chartreuse; color: brown; display: none;">Visit Power Plant</button>
     <div id="power">
       <h2 style="color: brown;">Welcome to the Power Plant</h2>
@@ -32,13 +41,16 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
     <script>
-let mutedUntil = null
-const today = new Date().toDateString()
-localStorage.setItem("embers",0)
-let embers = localStorage.getItem("embers")||0
+let adrUntil = parseFloat(localStorage.getItem("adrUntil")) || 0;
+const shopBtns = document.getElementById("shopBtns");
+let shopping = false;
+let mutedUntil = 0;
+const today = new Date().toDateString();
 
-let streak = localStorage.getItem("streak")||0
-let lastLogin = localStorage.getItem("lastLogin")||today
+let embers = parseInt(localStorage.getItem("embers")) || 10;
+let streak = parseInt(localStorage.getItem("streak")) || 0;
+let lastLogin = localStorage.getItem("lastLogin") || today;
+
 const firebaseConfig = {
   apiKey: "AIzaSyBUsDxbGq9LvRNSlebdpXpRHnEXAn879Wc",
   authDomain: "flamechat-1a663.firebaseapp.com",
@@ -73,33 +85,32 @@ const usersRef = db.collection("users");
 
 const bannedWords = ["fuck","blowjob","dick","pussy","ass","balls","cunt","nigger","nigga","milf","sex","bitch","cock","suck","cum","shit","penis","vulva","vagina","boob","boobs","boobies","cuck","fag","faggot","faggots"];
 
-function updateEnergyDisplay(val,val2) {
-  energyBoard.textContent = `Welcome to the Town Square! ⚡️${val}🔥${val2}`;
+function updateEnergyDisplay(val, val2) {
+  energyBoard.textContent = `Welcome to the Town Square! ⚡️${val} 🔥${val2}`;
 }
 function setEnergy(val) {
-  energy = Math.max(0, val|0);
-  updateEnergyDisplay(energy,embers);
+  energy = Math.max(0, val | 0);
+  updateEnergyDisplay(energy, embers);
 }
 function incEnergy(delta) {
   setEnergy(energy + delta);
 }
 function sanitize(str) { return (str || "").trim(); }
-function hasProfanity(str){
+function hasProfanity(str) {
   const low = str.toLowerCase();
   return bannedWords.some(w => low.includes(w));
 }
-function nowMs(){ return Date.now(); }
+function nowMs() { return Date.now(); }
 
 function parseMessage(raw) {
   let halfLife = null;
   let text = raw;
-
   const tagStart = text.indexOf("#hl ");
   if (tagStart !== -1) {
     const hashAfter = text.indexOf("#", tagStart + 1);
     const segment = hashAfter !== -1 ? text.slice(tagStart + 1, hashAfter) : text.slice(tagStart + 1);
     text = hashAfter !== -1 ? text.replace(text.slice(tagStart, hashAfter + 1), "") : text.replace(text.slice(tagStart), "");
-    const parts = segment.trim().split(/\s+/); 
+    const parts = segment.trim().split(/\s+/);
     if (parts[1]) {
       const v = parts[1].toLowerCase();
       if (v.endsWith("h")) halfLife = parseFloat(v) * 60 * 60 * 1000;
@@ -110,6 +121,7 @@ function parseMessage(raw) {
   }
   return [[], sanitize(text), halfLife];
 }
+
 setInterval(() => {
   if (energy !== lastSavedEnergy) {
     statsRef.set({ energy }, { merge: true });
@@ -132,12 +144,11 @@ document.getElementById("signup").addEventListener("click", async () => {
 
     const cred = await auth.createUserWithEmailAndPassword(email, password);
     const uid = cred.user.uid;
-
     const allUsers = await usersRef.get();
     const rank = allUsers.size === 0 ? "Head Admin" : "Member";
 
     await usersRef.doc(uid).set({
-      email, username, rank, warnings: 0, banned: false, mutedUntil: 0,
+      email, username, rank, warnings: 0, banned: false, mutedUntil: 0, adrUntil: 0,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
 
@@ -159,11 +170,13 @@ document.getElementById("login").addEventListener("click", async () => {
     if (!doc.exists) throw new Error("User profile not found. Please sign up again.");
 
     currentUser = { uid, ...doc.data() };
+    mutedUntil = currentUser.mutedUntil || 0;
 
     alert("✅ Logged in as " + currentUser.username);
     document.getElementById("signup").style.display = "none";
     document.getElementById("login").style.display = "none";
     town.style.display = "block";
+    document.getElementById("shop").style.display = "block";
     if ((currentUser.rank || "").includes("Admin")) plantBtn.style.display = "block";
   } catch (err) {
     alert("❌ " + err.message);
@@ -171,10 +184,11 @@ document.getElementById("login").addEventListener("click", async () => {
 });
 
 async function sendMessage() {
-  if(mutedUntil > Date.now()){
-    alert("🚫 You are muted.")
-    return
+  if (mutedUntil > Date.now()) {
+    alert("🚫 You are muted.");
+    return;
   }
+
   const textRaw = sanitize(msgInput.value);
   if (!textRaw) return;
   if (!auth.currentUser) return alert("❌ Please log in first");
@@ -185,18 +199,24 @@ async function sendMessage() {
   if (user.banned) return alert("🚫 You are banned.");
 
   if (hasProfanity(textRaw)) {
-     warn(auth.currentUser.uid,"Use of no-no words")
-    return
+    warn(auth.currentUser.uid, "Use of banned words");
+    return;
   }
 
   let [recipients, text, halfLife] = parseMessage(textRaw);
-  
   const words = text.split(/\s+/).filter(Boolean);
-  const tooLongSingle = (words.length === 1 && words[0].length > 45);
-  const anyWordTooLong = (words.length > 1 && words.some(w => w.length > 30));
-  const tooLongMsg = text.length > 550;
 
-  const msgRef = await msgsRef.add({
+  const singleLim = (adrUntil > Date.now()) ? 60 : 45;
+  const msgLim = (adrUntil > Date.now()) ? 2000 : 550;
+  const countLim = (adrUntil > Date.now()) ? 15 : 10;
+  const msgLim2 = (adrUntil > Date.now()) ? 100 : 75;
+  const countLim2 = (adrUntil > Date.now()) ? 5 : 3;
+
+  const tooLongSingle = (words.length === 1 && words[0].length > singleLim);
+  const anyWordTooLong = (words.length > 1 && words.some(w => w.length > 30));
+  const tooLongMsg = text.length > msgLim;
+
+  await msgsRef.add({
     halfLife: halfLife || null,
     recipients,
     text,
@@ -204,25 +224,26 @@ async function sendMessage() {
     rank: user.rank,
     createdAt: firebase.firestore.FieldValue.serverTimestamp()
   });
-  grantDailyEmbers()
+
+  grantDailyEmbers();
   incEnergy(1);
   msgCount++;
 
   if (tooLongSingle || anyWordTooLong) {
     await deleteLastNMessages(user.username, 1);
-    warn(auth.currentUser.uid,"use of nonsense words for spammy purposes")
+    warn(auth.currentUser.uid, "use of nonsense words for spammy purposes");
     msgCount = 0;
   } else if (tooLongMsg) {
     await deleteLastNMessages(user.username, 10);
-    warn(auth.currentUser.uid,"sending a likely spammy message")
+    warn(auth.currentUser.uid, "sending a likely spammy message");
     msgCount = 0;
-  } else if (msgCount >= 3 && text.length > 75) { 
+  } else if (msgCount >= countLim2 && msgLim2) {
     await deleteLastNMessages(user.username, 3);
-    warn(auth.currentUser.uid,"sending many large messages in a short period of time")
+    warn(auth.currentUser.uid, "sending many large messages quickly");
     msgCount = 0;
-  } else if (msgCount >= 10) {
+  } else if (msgCount >= countLim) {
     await deleteLastNMessages(user.username, 10);
-    warn(auth.currentUser.uid,"flooding the chat")
+    warn(auth.currentUser.uid, "flooding the chat");
     msgCount = 0;
   }
 
@@ -231,7 +252,6 @@ async function sendMessage() {
 
 async function deleteLastNMessages(username, n) {
   incEnergy(-n);
-
   const snap = await msgsRef.orderBy("createdAt", "desc").limit(200).get();
   const userMsgs = snap.docs.filter(d => (d.data().username === username)).slice(0, n);
   if (userMsgs.length === 0) return;
@@ -242,7 +262,7 @@ async function deleteLastNMessages(username, n) {
 }
 
 sendBtn.addEventListener("click", sendMessage);
-window.addEventListener("keydown", (e) => {
+window.addEventListener("keydown", e => {
   if (e.key === "Enter" && !e.shiftKey) {
     e.preventDefault();
     sendMessage();
@@ -281,58 +301,54 @@ function renderPlant(messages) {
   });
 }
 
-function escapeHtml(s){
-  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
 }
 
-msgsRef.orderBy("createdAt","asc").onSnapshot(snap => {
+msgsRef.orderBy("createdAt", "asc").onSnapshot(snap => {
   const all = [];
   snap.forEach(d => all.push({ id: d.id, ...d.data() }));
-
   const now = nowMs();
-  const townMsgs = [];
-  const plantMsgs = [];
-
+  const townMsgs = [], plantMsgs = [];
   for (const m of all) {
     const created = m.createdAt?.toMillis ? m.createdAt.toMillis() : null;
     if (m.halfLife && created) {
       const age = now - created;
       if (age >= m.halfLife) plantMsgs.push(m);
       else townMsgs.push(m);
-    } else {
-      townMsgs.push(m);
-    }
+    } else townMsgs.push(m);
   }
-
   renderTown(townMsgs);
   renderPlant(plantMsgs);
 });
-function grantDailyEmbers(){
-  if(lastLogin !== today){
-   const yesterday = new Date(Date.now() - 86400000).toDateString()
-   streak = (lastLogin === yesterday) ? streak + 1 : 1
-     streak = 1
-    const reward = 2 ** (streak - 1)
-    embers += reward
-    localStorage.setItem("streak",streak)
-    localStorage.setItem("embers",embers)
-    localStorage.setItem("lastLogin",today)
+
+function grantDailyEmbers() {
+  if (lastLogin !== today) {
+    const yesterday = new Date(Date.now() - 86400000).toDateString();
+    streak = (lastLogin === yesterday) ? streak + 1 : 1;
+    const reward = 2 ** (streak - 1);
+    embers += reward;
+    localStorage.setItem("streak", streak);
+    localStorage.setItem("embers", embers);
+    localStorage.setItem("lastLogin", today);
   }
 }
-async function warn(uid,reason){
-  const userRef = usersRef.doc(uid)
-  const userSnap = await userRef.get()
-  if(!userSnap.exists) return
-  const data = userSnap.data()
-  let warnings = (data.warnings || 0) + 1
-  mutedUntil = data.mutedUntil || 0
-  let muteMsg = ""
-  if(warnings % 3 === 0){
-    const duration = 60000 * warnings
-    mutedUntil = Date.now() + duration
-    muteMsg = "Muted for "+10*warnings+" minutes."
+
+async function warn(uid, reason) {
+  const userRef = usersRef.doc(uid);
+  const userSnap = await userRef.get();
+  if (!userSnap.exists) return;
+  const data = userSnap.data();
+  let warnings = (data.warnings || 0) + 1;
+  let muteMsg = "";
+  if (warnings % 3 === 0) {
+    const duration = 10 * warnings * 60 * 1000;
+    mutedUntil = Date.now() + duration;
+    muteMsg = `Muted for ${10 * warnings} minutes.`;
   }
-  await userRef.update({warnings, mutedUntil})
+  await userRef.update({ warnings, mutedUntil });
   await msgsRef.add({
     username: "🧑‍⚖️ Town Judge",
     rank: "Bot",
@@ -340,9 +356,34 @@ async function warn(uid,reason){
     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
   });
 }
-    </script>
 
-    <style>
+document.getElementById("shop").addEventListener("click", function() {
+  shopping = !shopping;
+  document.getElementById("shop").innerHTML = shopping ? "Return to Town Square" : "View Item Shop";
+  town.style.display = shopping ? "none" : "block";
+  shopBtns.style.display = shopping ? "block" : "none";
+});
+
+document.getElementById("adrBtn").addEventListener("click", async function() {
+  if (embers >= 4) {
+    embers -= 4;
+    updateEnergyDisplay(energy, embers);
+    localStorage.setItem("embers", embers.toString());
+    adrUntil = Date.now() + (10 * 60 * 1000);
+    localStorage.setItem("adrUntil", adrUntil);
+    await msgsRef.add({
+      username: "🏪 Shopkeeper",
+      rank: "Bot",
+      text: `${currentUser.username} just bought an Adrenaline Rush! 🎢`,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+  } else {
+    alert("Not enough embers!");
+  }
+});
+</script>
+
+<style>
 html, body {
   margin: 0;
   padding: 0;
@@ -361,16 +402,16 @@ html, body {
   width: 383px; background-color: salmon; color: darkred;
 }
 #signup:hover { background-color: darkred; color: red; }
-#sender {
+#sender, #shop {
   width: 140px; height: 40px; background-color: darkred; color: red;
 }
-#sender:hover { background-color: salmon; color: darkred; }
+#sender:hover, #shop:hover { background-color: salmon; color: darkred; }
 #townSquare { display: none; background-color: brown; padding: 10px; }
 #power { display: none; background-color: chartreuse; padding: 10px; }
 #message {
   width: 100%; max-width: 700px; min-height: 80px; padding: 8px; box-sizing: border-box;
 }
-    </style>
-  </main>
+</style>
+</main>
 </body>
 </html>
