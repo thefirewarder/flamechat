@@ -22,7 +22,7 @@
 
     <div id="shopBtns" style="display: none;">
       <button id="adrBtn" style="width: 300px; height: 150px; background-color: red; color: orange;">
-        Buy Adrenaline Rush (4 embers) — Spam rules become more lenient for you and you only for 10 minutes.
+        Buy Adrenaline Rush (4 embers) — Spam rules become more lenient for you and you only for 10 minutes. Also, every message you send will be written in red.
       </button>
     </div>
 
@@ -42,16 +42,7 @@
 
     <script>
 let adrUntil = parseFloat(localStorage.getItem("adrUntil")) || 0;
-const shopBtns = document.getElementById("shopBtns");
-let shopping = false;
-let mutedUntil = 0;
-const today = new Date().toDateString();
-
-let embers = parseInt(localStorage.getItem("embers")) || 10;
-let streak = parseInt(localStorage.getItem("streak")) || 0;
-let lastLogin = localStorage.getItem("lastLogin") || today;
-
-const firebaseConfig = {
+      const firebaseConfig = {
   apiKey: "AIzaSyBUsDxbGq9LvRNSlebdpXpRHnEXAn879Wc",
   authDomain: "flamechat-1a663.firebaseapp.com",
   projectId: "flamechat-1a663",
@@ -61,14 +52,22 @@ const firebaseConfig = {
   measurementId: "G-J0TGKRQQGY"
 };
 firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
 const auth = firebase.auth();
+      const db = firebase.firestore();
+      const usersRef = db.collection("users");
+const shopBtns = document.getElementById("shopBtns");
+let shopping = false;
+let mutedUntil = 0;
+const today = new Date().toDateString();
+let embers = parseInt(localStorage.getItem("embers")) || 10;
+let streak = parseInt(localStorage.getItem("streak")) || 1;
+let lastLogin = localStorage.getItem("lastLogin") || today;
 
 const energyBoard = document.getElementById("energyboard");
 const plantBtn = document.getElementById("plant");
 const msgInput = document.getElementById("message");
 const sendBtn = document.getElementById("sender");
-const town = document.getElementById("townSquare");
+const town = document.getElementById("townSquare");a
 const power = document.getElementById("power");
 const messagesDiv = document.getElementById("messages");
 const plantDiv = document.getElementById("messages2");
@@ -80,8 +79,7 @@ let msgCount = 0;
 let atPlant = false;
 
 const statsRef = db.collection("chats").doc("town_square").collection("stats").doc("stats");
-const msgsRef  = db.collection("chats").doc("town_square").collection("messages");
-const usersRef = db.collection("users");
+const msgsRef  = db.collection("chats").doc("town_square").collection("messages")
 
 const bannedWords = ["fuck","blowjob","dick","pussy","ass","balls","cunt","nigger","nigga","milf","sex","bitch","cock","suck","cum","shit","penis","vulva","vagina","boob","boobs","boobies","cuck","fag","faggot","faggots"];
 
@@ -176,6 +174,7 @@ document.getElementById("login").addEventListener("click", async () => {
     document.getElementById("signup").style.display = "none";
     document.getElementById("login").style.display = "none";
     town.style.display = "block";
+    adrUntil = parseFloat(localStorage.getItem("adrUntil"))||currentUser.adrUntil||0
     document.getElementById("shop").style.display = "block";
     if ((currentUser.rank || "").includes("Admin")) plantBtn.style.display = "block";
   } catch (err) {
@@ -205,7 +204,7 @@ async function sendMessage() {
 
   let [recipients, text, halfLife] = parseMessage(textRaw);
   const words = text.split(/\s+/).filter(Boolean);
-
+   adrUntil = parseFloat(localStorage.getItem("adrUntil")) || adrUntil;
   const singleLim = (adrUntil > Date.now()) ? 60 : 45;
   const msgLim = (adrUntil > Date.now()) ? 2000 : 550;
   const countLim = (adrUntil > Date.now()) ? 15 : 10;
@@ -282,6 +281,9 @@ function renderTown(messages) {
   messagesDiv.innerHTML = "";
   messages.forEach(m => {
     const p = document.createElement("p");
+    if(m.username === currentUser.username && currentUser.adrUntil > Date.now()){
+      p.style.color = "red"
+    }
     const ts = m.createdAt?.toDate ? m.createdAt.toDate() : null;
     const when = ts ? ` · ${ts.toLocaleString()}` : "";
     p.innerHTML = `<strong>${m.username}</strong> <em>(${m.rank || "Member"})</em>${when}<br>${escapeHtml(m.text || "")}`;
@@ -371,6 +373,8 @@ document.getElementById("adrBtn").addEventListener("click", async function() {
     localStorage.setItem("embers", embers.toString());
     adrUntil = Date.now() + (10 * 60 * 1000);
     localStorage.setItem("adrUntil", adrUntil);
+    await usersRef.doc(currentUser.uid).update({ adrUntil });
+    currentUser.adrUntil = adrUntil; 
     await msgsRef.add({
       username: "🏪 Shopkeeper",
       rank: "Bot",
