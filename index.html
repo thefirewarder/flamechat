@@ -164,13 +164,17 @@ document.getElementById("login").addEventListener("click", async () => {
     const email = prompt("Enter email:");
     const password = prompt("Enter password:");
     if (!email || !password) return;
-
     await auth.signInWithEmailAndPassword(email, password);
     const uid = auth.currentUser.uid;
+    unbanSelf()
     const doc = await usersRef.doc(uid).get();
     if (!doc.exists) throw new Error("User profile not found. Please sign up again.");
-
-    currentUser = { uid, ...doc.data() };
+    currentUser = { uid, ...doc.data() }
+    if(currentUser.banned){
+      alert("You are banned and cannot log in.")
+      await auth.signOut()
+      return
+    }
     mutedUntil = currentUser.mutedUntil || 0;
 
     alert("✅ Logged in as " + currentUser.username);
@@ -184,7 +188,6 @@ document.getElementById("login").addEventListener("click", async () => {
     alert("❌ " + err.message);
   }
 });
-
 async function sendMessage() {
   const textRaw = sanitize(msgInput.value);
   if (!textRaw) return;
@@ -228,8 +231,9 @@ async function sendMessage() {
       const textWords = textRaw.split(" ")
       banOnCommand(textWords[1],textWords[2])
     }
-  if (user.banned) return alert("🚫 You are banned.");
-
+  if (user.banned){ 
+    return alert("🚫 You are banned.")
+                   ;}
   if (hasProfanity(textRaw)) {
     warn(auth.currentUser.uid, "Use of banned words");
     return;
@@ -459,7 +463,7 @@ emberTicket.addEventListener("click",function(){
   const userRef = userDoc.ref;
   const data = userDoc.data();
  await userRef.update({banned: true})
-
+  
   await msgsRef.add({
     username: "System",
     rank: "Bot",
@@ -467,6 +471,9 @@ emberTicket.addEventListener("click",function(){
     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
   })
  }
+  function unbanSelf(){
+   usersRef.doc(auth.currentUser.uid).update({banned: false})
+  }
 </script>
 
 <style>
@@ -496,7 +503,7 @@ html, body {
 #power { display: none; background-color: chartreuse; padding: 10px; }
 #message {
   width: 100%; max-width: 700px; min-height: 80px; padding: 8px; box-sizing: border-box;
-}
+  }
 </style>
 </main>
 </body>
