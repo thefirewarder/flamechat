@@ -24,6 +24,9 @@
       <button id="adrBtn" style="width: 300px; height: 150px; background-color: red; color: orange;">
         Buy Adrenaline Rush (4 embers) — Spam rules become more lenient for you and you only for 10 minutes. Also, every message you send will be written in red.
       </button>
+      <button id="emberTicket" style="width: 300px; height: 150px; background-color: red; color: orange; display: none;">
+        Buy Ember Lottery Ticket (2 embers) - 10% chance to win 25 embers
+      </button>
     </div>
 
     <br>
@@ -41,10 +44,11 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
     <script>
+let emberTicket = document.getElementById("emberTicket")
 let adrUntil = parseFloat(localStorage.getItem("adrUntil")) || 0;
       const firebaseConfig = {
   apiKey: "AIzaSyBUsDxbGq9LvRNSlebdpXpRHnEXAn879Wc",
-  authDomain: "flamechat-1a663.firebaseapp.com",
+  authDomain: "flamtoechat-1a663.firebaseapp.com",
   projectId: "flamechat-1a663",
   storageBucket: "flamechat-1a663.appspot.com",
   messagingSenderId: "814137163253",
@@ -61,8 +65,6 @@ let mutedUntil = 0;
 const today = new Date().toDateString();
 let embers = parseInt(localStorage.getItem("embers")) || 10;
 let streak = parseInt(localStorage.getItem("streak")) || 1;
-let lastLogin = localStorage.getItem("lastLogin") || today;
-
 const energyBoard = document.getElementById("energyboard");
 const plantBtn = document.getElementById("plant");
 const msgInput = document.getElementById("message");
@@ -183,11 +185,6 @@ document.getElementById("login").addEventListener("click", async () => {
 });
 
 async function sendMessage() {
-  if (mutedUntil > Date.now()) {
-    alert("🚫 You are muted.");
-    return;
-  }
-
   const textRaw = sanitize(msgInput.value);
   if (!textRaw) return;
   if (!auth.currentUser) return alert("❌ Please log in first");
@@ -195,6 +192,22 @@ async function sendMessage() {
   const userDoc = await usersRef.doc(auth.currentUser.uid).get();
   if (!userDoc.exists) return alert("❌ User profile missing");
   const user = userDoc.data();
+     mutedUntil = user.mutedUntil || 0
+    if (mutedUntil > Date.now()) {
+    alert("🚫 You are muted.");
+    return;
+  }
+   if(textRaw.startsWith("/mute")&&textRaw.split(" ").length === 4 && currentUser.rank.includes("Admin")){
+    const textWords = textRaw.split(" ")
+    if(textWords[1].toLowerCase()!=="thefirewarder"){
+    muteOnCommand(textWords[1],textWords[2],textWords[3])
+    }
+    return
+  }
+    else if(textRaw.startsWith("/ban")&&textRaw.split(" ").length === 3 && currentUser.rank === "Head Admin"){
+      const textWords = textRaw.split(" ")
+      banOnCommand(textWords[1],textWords[2])
+    }
   if (user.banned) return alert("🚫 You are banned.");
 
   if (hasProfanity(textRaw)) {
@@ -281,7 +294,7 @@ function renderTown(messages) {
   messagesDiv.innerHTML = "";
   messages.forEach(m => {
     const p = document.createElement("p");
-    if(m.username === currentUser.username && currentUser.adrUntil > Date.now()){
+    if(currentUser && m.username === currentUser.username && currentUser.adrUntil > Date.now()){
       p.style.color = "red"
     }
     const ts = m.createdAt?.toDate ? m.createdAt.toDate() : null;
@@ -327,16 +340,21 @@ msgsRef.orderBy("createdAt", "asc").onSnapshot(snap => {
 });
 
 function grantDailyEmbers() {
-  if (lastLogin !== today) {
+  const today = new Date().toDateString();
+  const storedLastLogin = localStorage.getItem("lastLogin") || "";
+
+  if (storedLastLogin !== today) {
     const yesterday = new Date(Date.now() - 86400000).toDateString();
-    streak = (lastLogin === yesterday) ? streak + 1 : 1;
+    streak = (storedLastLogin === yesterday) ? streak + 1 : 1;
     const reward = 2 ** (streak - 1);
     embers += reward;
+    updateEnergyDisplay(energy, embers);
     localStorage.setItem("streak", streak);
     localStorage.setItem("embers", embers);
     localStorage.setItem("lastLogin", today);
   }
 }
+
 
 async function warn(uid, reason) {
   const userRef = usersRef.doc(uid);
@@ -385,6 +403,50 @@ document.getElementById("adrBtn").addEventListener("click", async function() {
     alert("Not enough embers!");
   }
 });
+emberTicket.addEventListener("click",function(){
+  
+})
+  async function muteOnCommand(username, reason, duration) {
+  const userQuery = await usersRef.where("username", "==", username).limit(1).get();
+  if (userQuery.empty) {
+    alert("❌ User not found");
+    return;
+  }
+
+  const userDoc = userQuery.docs[0];
+  const userRef = userDoc.ref;
+  const data = userDoc.data();
+  const warnings = (data.warnings || 0) + 1;
+  const mutedUntil = Date.now() + (duration * 60000);
+
+  await userRef.update({ warnings, mutedUntil });
+
+  await msgsRef.add({
+    username: "System",
+    rank: "Bot",
+    text: `${username} has been muted by an anonymous admin for ${duration} minutes for ${reason}`,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+  })
+}
+ async function banOnCommand(username, reason) {
+  const userQuery = await usersRef.where("username", "==", username).limit(1).get();
+  if (userQuery.empty) {
+    alert("❌ User not found");
+    return;
+  }
+
+  const userDoc = userQuery.docs[0];
+  const userRef = userDoc.ref;
+  const data = userDoc.data();
+ await userRef.update({banned: true})
+
+  await msgsRef.add({
+    username: "System",
+    rank: "Bot",
+    text: `${username} has been permanently banned by THefirewarder for ${reason}`,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+  })
+ }
 </script>
 
 <style>
