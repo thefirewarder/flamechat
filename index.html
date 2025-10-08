@@ -83,7 +83,7 @@ let atPlant = false;
 const statsRef = db.collection("chats").doc("town_square").collection("stats").doc("stats");
 const msgsRef  = db.collection("chats").doc("town_square").collection("messages")
 
-const bannedWords = ["fuck","blowjob","dick","pussy","ass","balls","cunt","nigger","nigga","milf","sex","bitch","cock","suck","cum","shit","penis","vulva","vagina","boob","boobs","boobies","cuck","fag","faggot","faggots"];
+const bannedWords = ["fuck","blowjob","dick","pussy","ass","balls","cunt","nigger","nigga","milf","sex","bitch","cock","suck","cum","shit","penis","vulva","vagina","boob","boobs","boobies","cuck","fag","faggot","faggots","67"," 6-7"];
 
 function updateEnergyDisplay(val, val2) {
   energyBoard.textContent = `Welcome to the Town Square! ⚡️${val} 🔥${val2}`;
@@ -197,14 +197,33 @@ async function sendMessage() {
     alert("🚫 You are muted.");
     return;
   }
-   if(textRaw.startsWith("/mute")&&textRaw.split(" ").length === 4 && currentUser.rank.includes("Admin")){
-    const textWords = textRaw.split(" ")
-    if(textWords[1].toLowerCase()!=="thefirewarder"){
-    muteOnCommand(textWords[1],textWords[2],textWords[3])
-    }
-    return
+   if (textRaw.startsWith("/mute") && user.rank.includes("Admin")) {
+  const args = textRaw.trim().split(/\s+/);
+  
+  if (args.length < 4) {
+    alert("⚠️ Usage: /mute [username] [reason] [duration in minutes]");
+    return;
   }
-    else if(textRaw.startsWith("/ban")&&textRaw.split(" ").length === 3 && currentUser.rank === "Head Admin"){
+
+  const target = args[1];
+  const reason = args.slice(2, -1).join(" ");
+  const durationStr = args[args.length - 1];
+  const duration = parseInt(durationStr);
+
+  if (isNaN(duration) || duration <= 0) {
+    alert("❌ Invalid duration.");
+    return;
+  }
+
+  if (target.toLowerCase() === "thefirewarder") {
+    alert("🚫 You cannot mute Thefirewarder.");
+    return;
+  }
+
+  muteOnCommand(target, reason, duration);
+  return;
+}
+    else if(textRaw.startsWith("/ban")&&textRaw.split(" ").length === 3 && user.rank === "Head Admin"){
       const textWords = textRaw.split(" ")
       banOnCommand(textWords[1],textWords[2])
     }
