@@ -98,7 +98,8 @@ function incEnergy(delta) {
 function sanitize(str) { return (str || "").trim(); }
 function hasProfanity(str) {
   const low = str.toLowerCase();
-  return bannedWords.some(w => low.includes(w));
+  const words = low.split(" ")
+  return words.some(w => bannedWords.some(b => w.toLowerCase().includes(b.toLowerCase())));
 }
 function nowMs() { return Date.now(); }
 
