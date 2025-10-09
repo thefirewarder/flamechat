@@ -322,7 +322,8 @@ plantBtn.addEventListener("click", () => {
 function renderTown(messages) {
   messagesDiv.innerHTML = "";
   messages.forEach(m => {
-    if (m.recipients.length === 0 || (currentUser && m.recipients.includes(currentUser.username)) || (currentUser && m.username === currentUser.username)) {
+    const recips = Array.isArray(m.recipients) ? m.recipients : [];
+    if (recips.length === 0 || m.recipients.length === 0 || (currentUser && m.recipients.includes(currentUser.username)) || (currentUser && m.username === currentUser.username)) {
       const p = document.createElement("p");
       if (currentUser && m.username === currentUser.username && currentUser.adrUntil > Date.now()) p.style.color = "red";
       const ts = m.createdAt?.toDate ? m.createdAt.toDate() : null;
@@ -373,19 +374,40 @@ msgsRef.orderBy("createdAt", "asc").onSnapshot(snap => {
 });
 
 function grantDailyEmbers() {
-  const today = new Date().toDateString();
-  const storedLastLogin = localStorage.getItem("lastLogin") || "";
+  const today = new Date();
+  const todayStr = today.toDateString();
+  const storedLastLogin = localStorage.getItem("lastLogin");
+  let lastLoginDate = storedLastLogin ? new Date(storedLastLogin) : null;
 
-  if (storedLastLogin !== today) {
-    const yesterday = new Date(Date.now() - 86400000).toDateString();
-    streak = (storedLastLogin === yesterday) ? streak + 1 : 1;
-    const reward = 2 ** (streak - 1);
-    embers += reward;
-    updateEnergyDisplay(energy, embers);
-    localStorage.setItem("streak", streak);
-    localStorage.setItem("embers", embers);
-    localStorage.setItem("lastLogin", today);
+  streak = parseInt(localStorage.getItem("streak")) || 0;
+  embers = parseInt(localStorage.getItem("embers")) || 0;
+
+  if (!lastLoginDate) {
+    streak = 1;
+    embers += 1;
+    localStorage.setItem("lastLogin", todayStr);
+  } 
+  else {
+    const diffDays = Math.floor((today - lastLoginDate) / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) {
+
+      return;
+    } else if (diffDays === 1) {
+      streak += 1;
+      embers += Math.min(10, streak); 
+    } else {
+      streak = 1;
+      embers += 1;
+    }
+    localStorage.setItem("lastLogin", todayStr);
   }
+
+  // Update localStorage and UI
+  localStorage.setItem("streak", streak);
+  localStorage.setItem("embers", embers);
+  updateEnergyDisplay(energy, embers);
+
 }
 
 
