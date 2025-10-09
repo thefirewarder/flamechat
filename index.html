@@ -587,7 +587,9 @@ workBtn.addEventListener("click", async function () {
     town.style.display = "block";
     availableJobs.style.display = "none";
     document.getElementById("shop").style.display = "block";
+    if(userData.rank.includes("Admin")){
     plantBtn.style.display = "block";
+    }
     workBtn.textContent = "📋 Get a job";
   }
 
