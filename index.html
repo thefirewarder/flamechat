@@ -24,7 +24,7 @@
       <button id="adrBtn" style="width: 300px; height: 150px; background-color: red; color: orange;">
         Buy Adrenaline Rush (4 embers) — Spam rules become more lenient for you and you only for 10 minutes. Also, every message you send will be written in red.
       </button>
-      <button id="emberTicket" style="width: 300px; height: 150px; background-color: red; color: orange; display: none;">
+      <button id="emberTicket" style="width: 300px; height: 150px; background-color: red; color: orange;">
         Buy Ember Lottery Ticket (2 embers) - 10% chance to win 19 embers
       </button>
     </div>
@@ -104,24 +104,29 @@ function hasProfanity(str) {
 function nowMs() { return Date.now(); }
 
 function parseMessage(raw) {
+  let recipients = [];
   let halfLife = null;
   let text = raw;
-  const tagStart = text.indexOf("#hl ");
-  if (tagStart !== -1) {
-    const hashAfter = text.indexOf("#", tagStart + 1);
-    const segment = hashAfter !== -1 ? text.slice(tagStart + 1, hashAfter) : text.slice(tagStart + 1);
-    text = hashAfter !== -1 ? text.replace(text.slice(tagStart, hashAfter + 1), "") : text.replace(text.slice(tagStart), "");
-    const parts = segment.trim().split(/\s+/);
-    if (parts[1]) {
-      const v = parts[1].toLowerCase();
-      if (v.endsWith("h")) halfLife = parseFloat(v) * 60 * 60 * 1000;
-      else if (v.endsWith("m")) halfLife = parseFloat(v) * 60 * 1000;
-      else if (v.endsWith("s")) halfLife = parseFloat(v) * 1000;
-      else halfLife = parseFloat(v) * 1000;
-    }
+
+  const privMatch = text.match(/#p\s+([^#]+)#/i);
+  if (privMatch) {
+    recipients = privMatch[1].split(",").map(r => r.trim());
+    text = text.replace(privMatch[0], "").trim();
   }
-  return [[], sanitize(text), halfLife];
+
+  const hlMatch = text.match(/#hl\s*([0-9]+[hmsHMS]?)#/);
+  if (hlMatch) {
+    const v = hlMatch[1].toLowerCase();
+    if (v.endsWith("h")) halfLife = parseFloat(v) * 60 * 60 * 1000;
+    else if (v.endsWith("m")) halfLife = parseFloat(v) * 60 * 1000;
+    else if (v.endsWith("s")) halfLife = parseFloat(v) * 1000;
+    else halfLife = parseFloat(v) * 1000;
+    text = text.replace(hlMatch[0], "").trim();
+  }
+
+  return [recipients, sanitize(text), halfLife];
 }
+
 
 setInterval(() => {
   if (energy !== lastSavedEnergy) {
@@ -254,7 +259,7 @@ async function sendMessage() {
 
   await msgsRef.add({
     halfLife: halfLife || null,
-    recipients,
+    recipients: recipients,
     text,
     username: user.username,
     rank: user.rank,
@@ -317,28 +322,32 @@ plantBtn.addEventListener("click", () => {
 function renderTown(messages) {
   messagesDiv.innerHTML = "";
   messages.forEach(m => {
-    const p = document.createElement("p");
-    if(currentUser && m.username === currentUser.username && currentUser.adrUntil > Date.now()){
-      p.style.color = "red"
+    if (m.recipients.length === 0 || (currentUser && m.recipients.includes(currentUser.username)) || (currentUser && m.username === currentUser.username)) {
+      const p = document.createElement("p");
+      if (currentUser && m.username === currentUser.username && currentUser.adrUntil > Date.now()) p.style.color = "red";
+      const ts = m.createdAt?.toDate ? m.createdAt.toDate() : null;
+      const when = ts ? ` · ${ts.toLocaleString()}` : "";
+      p.innerHTML = `<strong>${m.username}</strong> <em>(${m.rank || "Member"})</em>${when}<br>${escapeHtml(m.text || "")}`;
+      messagesDiv.insertBefore(p, messagesDiv.firstChild);
     }
-    const ts = m.createdAt?.toDate ? m.createdAt.toDate() : null;
-    const when = ts ? ` · ${ts.toLocaleString()}` : "";
-    p.innerHTML = `<strong>${m.username}</strong> <em>(${m.rank || "Member"})</em>${when}<br>${escapeHtml(m.text || "")}`;
-    messagesDiv.insertBefore(p,messagesDiv.firstChild);
   });
 }
+
 
 function renderPlant(messages) {
   plantDiv.innerHTML = "";
   messages.forEach(m => {
-    const p = document.createElement("p");
-    const ts = m.createdAt?.toDate ? m.createdAt.toDate() : null;
-    const when = ts ? ` · ${ts.toLocaleString()}` : "";
-    const hl = m.halfLife ? ` · half-life ${Math.round(m.halfLife/1000)}s` : "";
-    p.innerHTML = `<strong>${m.username}</strong> <em>(${m.rank || "Member"})</em>${when}${hl}<br>${escapeHtml(m.text || "")}`;
-    plantDiv.appendChild(p);
+    if (m.recipients.length === 0 || (currentUser && m.recipients.includes(currentUser.username)) || (currentUser && m.username === currentUser.username)) {
+      const p = document.createElement("p");
+      const ts = m.createdAt?.toDate ? m.createdAt.toDate() : null;
+      const when = ts ? ` · ${ts.toLocaleString()}` : "";
+      const hl = m.halfLife ? ` · half-life ${Math.round(m.halfLife / 1000)}s` : "";
+      p.innerHTML = `<strong>${m.username}</strong> <em>(${m.rank || "Member"})</em>${when}${hl}<br>${escapeHtml(m.text || "")}`;
+      plantDiv.appendChild(p);
+    }
   });
 }
+
 
 function escapeHtml(s) {
   return s.replace(/[&<>"']/g, c => ({
@@ -427,8 +436,34 @@ document.getElementById("adrBtn").addEventListener("click", async function() {
     alert("Not enough embers!");
   }
 });
-emberTicket.addEventListener("click",function(){
-  
+emberTicket.addEventListener("click",async function(){
+  if(embers >= 2){
+    embers-=2
+    updateEnergyDisplay(energy,embers)
+    localStorage.setItem("embers",embers.toString())
+    if(Math.ceil(Math.random()*10)===10){
+      embers+=19
+      await msgsRef.add({
+    username: "🎲Game master",
+    rank: "Bot",
+    text: currentUser.username+" played the ember lottery and won the jackpot of 19 embers!!! Congratulations, "+currentUser.username+"! 🔥🔥",
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+  })
+      updateEnergyDisplay(energy,embers)
+      localStorage.setItem("embers",embers.toString())
+    }
+    else{
+      await msgsRef.add({
+    username: "🎲Game master",
+    rank: "Bot",
+    text: currentUser.username+" played the ember lottery and didn't win anything. Better luck next time... 🔥",
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+  })
+    }
+  }
+  else{
+    alert("Insufficient Embers.")
+  }
 })
   async function muteOnCommand(username, reason, duration) {
   const userQuery = await usersRef.where("username", "==", username).limit(1).get();
@@ -467,7 +502,7 @@ emberTicket.addEventListener("click",function(){
   await msgsRef.add({
     username: "System",
     rank: "Bot",
-    text: `${username} has been permanently banned by THefirewarder for ${reason}`,
+    text: `${username} has been permanently banned by Thefirewarder for ${reason}`,
     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
   })
  }
