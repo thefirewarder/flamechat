@@ -63,6 +63,7 @@ const shopBtns = document.getElementById("shopBtns");
 let shopping = false;
 let mutedUntil = 0;
 const today = new Date().toDateString();
+locaStorage.setItem("embers",10)
 let embers = parseInt(localStorage.getItem("embers")) || 0;
 let streak = parseInt(localStorage.getItem("streak")) || 1;
 const energyBoard = document.getElementById("energyboard");
