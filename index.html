@@ -63,7 +63,6 @@ const shopBtns = document.getElementById("shopBtns");
 let shopping = false;
 let mutedUntil = 0;
 const today = new Date().toDateString();
-locaStorage.setItem("embers",10)
 let embers = parseInt(localStorage.getItem("embers")) || 0;
 let streak = parseInt(localStorage.getItem("streak")) || 1;
 const energyBoard = document.getElementById("energyboard");
@@ -172,7 +171,6 @@ document.getElementById("login").addEventListener("click", async () => {
     if (!email || !password) return;
     await auth.signInWithEmailAndPassword(email, password);
     const uid = auth.currentUser.uid;
-    unbanSelf()
     const doc = await usersRef.doc(uid).get();
     if (!doc.exists) throw new Error("User profile not found. Please sign up again.");
     currentUser = { uid, ...doc.data() }
@@ -184,7 +182,7 @@ document.getElementById("login").addEventListener("click", async () => {
     mutedUntil = currentUser.mutedUntil || 0;
 
     alert("✅ Logged in as " + currentUser.username);
-    document.getElementById("signup").style.display = "none";
+       document.getElementById("signup").style.display = "none";
     document.getElementById("login").style.display = "none";
     town.style.display = "block";
     adrUntil = parseFloat(localStorage.getItem("adrUntil"))||currentUser.adrUntil||0
