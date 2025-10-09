@@ -25,7 +25,7 @@
         Buy Adrenaline Rush (4 embers) — Spam rules become more lenient for you and you only for 10 minutes. Also, every message you send will be written in red.
       </button>
       <button id="emberTicket" style="width: 300px; height: 150px; background-color: red; color: orange; display: none;">
-        Buy Ember Lottery Ticket (2 embers) - 10% chance to win 25 embers
+        Buy Ember Lottery Ticket (2 embers) - 10% chance to win 19 embers
       </button>
     </div>
 
@@ -63,7 +63,7 @@ const shopBtns = document.getElementById("shopBtns");
 let shopping = false;
 let mutedUntil = 0;
 const today = new Date().toDateString();
-let embers = parseInt(localStorage.getItem("embers")) || 10;
+let embers = parseInt(localStorage.getItem("embers")) || 0;
 let streak = parseInt(localStorage.getItem("streak")) || 1;
 const energyBoard = document.getElementById("energyboard");
 const plantBtn = document.getElementById("plant");
