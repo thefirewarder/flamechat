@@ -122,7 +122,7 @@ function parseMessage(raw) {
     if (v.endsWith("h")) halfLife = parseFloat(v) * 60 * 60 * 1000;
     else if (v.endsWith("m")) halfLife = parseFloat(v) * 60 * 1000;
     else if (v.endsWith("s")) halfLife = parseFloat(v) * 1000;
-    else halfLife = parseFloat(v) * 1000;fembers
+    else halfLife = parseFloat(v) * 1000;
     text = text.replace(hlMatch[0], "").trim();
   }
 
