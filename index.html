@@ -19,7 +19,9 @@
       <button id="sender">Send Message</button>
       <div id="messages" style="color: white; margin-top: 10px;"></div>
     </div>
-
+    <div id="availableJobs">
+    </div>
+    <button id="workBtn" style="background-color: blue; width: 100px; height: 50px; color: white;">📋Get a job</button>
     <div id="shopBtns" style="display: none;">
       <button id="adrBtn" style="width: 300px; height: 150px; background-color: red; color: orange;">
         Buy Adrenaline Rush (4 embers) — Spam rules become more lenient for you and you only for 10 minutes. Also, every message you send will be written in red.
@@ -28,8 +30,6 @@
         Buy Ember Lottery Ticket (2 embers) - 10% chance to win 19 embers
       </button>
     </div>
-
-    <br>
     <button id="shop" style="display: none;">View Item Shop</button>
 
     <button id="plant" style="background-color: chartreuse; color: brown; display: none;">Visit Power Plant</button>
@@ -44,6 +44,8 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
     <script>
+const availableJobs = document.getElementById("availableJobs")
+const workBtn = document.getElementById("workBtn")
 let emberTicket = document.getElementById("emberTicket")
 let adrUntil = parseFloat(localStorage.getItem("adrUntil")) || 0;
       const firebaseConfig = {
@@ -83,7 +85,7 @@ let atPlant = false;
 const statsRef = db.collection("chats").doc("town_square").collection("stats").doc("stats");
 const msgsRef  = db.collection("chats").doc("town_square").collection("messages")
 
-const bannedWords = ["fuck","blowjob","dick","pussy","ass","balls","cunt","nigger","nigga","milf","sex","bitch","cock","suck","cum","shit","penis","vulva","vagina","boob","boobs","boobies","cuck","fag","faggot","faggots","67"," 6-7"];
+const bannedWords = ["fuck","blowjob","dick","pussy","ass","balls","cunt","nigger","nigga","milf","sex","bitch","cock","suck","cum","shit","penis","vulva","vagina","boob","boobs","boobies","cuck","fag","faggot","faggots","67"," 6-7","6 or 7"];
 
 function updateEnergyDisplay(val, val2) {
   energyBoard.textContent = `Welcome to the Town Square! ⚡️${val} 🔥${val2}`;
@@ -120,7 +122,7 @@ function parseMessage(raw) {
     if (v.endsWith("h")) halfLife = parseFloat(v) * 60 * 60 * 1000;
     else if (v.endsWith("m")) halfLife = parseFloat(v) * 60 * 1000;
     else if (v.endsWith("s")) halfLife = parseFloat(v) * 1000;
-    else halfLife = parseFloat(v) * 1000;
+    else halfLife = parseFloat(v) * 1000;fembers
     text = text.replace(hlMatch[0], "").trim();
   }
 
@@ -182,6 +184,10 @@ document.getElementById("login").addEventListener("click", async () => {
     mutedUntil = currentUser.mutedUntil || 0;
 
     alert("✅ Logged in as " + currentUser.username);
+      workBtn.style.display="block"
+      grantDailyEmbers();
+      embers = Number(localStorage.getItem("embers")) || 0;
+updateEnergyDisplay(energy, embers);
        document.getElementById("signup").style.display = "none";
     document.getElementById("login").style.display = "none";
     town.style.display = "block";
@@ -265,7 +271,6 @@ async function sendMessage() {
     createdAt: firebase.firestore.FieldValue.serverTimestamp()
   });
 
-  grantDailyEmbers();
   incEnergy(1);
   msgCount++;
 
@@ -402,7 +407,6 @@ function grantDailyEmbers() {
     localStorage.setItem("lastLogin", todayStr);
   }
 
-  // Update localStorage and UI
   localStorage.setItem("streak", streak);
   localStorage.setItem("embers", embers);
   updateEnergyDisplay(energy, embers);
@@ -527,9 +531,94 @@ emberTicket.addEventListener("click",async function(){
     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
   })
  }
-  function unbanSelf(){
-   usersRef.doc(auth.currentUser.uid).update({banned: false})
+
+let inTown = true;
+
+workBtn.addEventListener("click", async function () {
+  if (inTown) {
+    const userDoc = await usersRef.doc(auth.currentUser.uid).get();
+    const userData = userDoc.data();
+
+    if (userData.warnings > 6) {
+      alert("You have too many warnings to apply for a job!");
+      return;
+    }
+
+    town.style.display = "none";
+    shopBtns.style.display = "none";
+    document.getElementById("shop").style.display = "none";
+    plantBtn.style.display = "none";
+
+    workBtn.textContent = "🏙️ Return to Town Square";
+    availableJobs.style.display = "block";
+    availableJobs.innerHTML = "<h2 style='color: orange;'>📋 Available Jobs</h2>";
+
+    const jobs = [
+      { name: "Town Janitor", desc: "Pay: 1 ember/hour", pay: 1 },
+      { name: "Chicken Nugget Health Inspector", desc: "Pay: 3 embers/hour", pay: 3 },
+      { name: "Professional Itch Scratcher", desc: "Pay: 4 embers/hour", pay: 4 }
+    ];
+
+    jobs.forEach(job => {
+      const btn = document.createElement("button");
+      btn.textContent = `${job.name} — ${job.desc}`;
+      Object.assign(btn.style, {
+        display: "block",
+        margin: "10px auto",
+        width: "400px",
+        height: "60px",
+        backgroundColor: "darkred",
+        color: "orange",
+        fontSize: "14px"
+      });
+
+      btn.onclick = async () => {
+        await usersRef.doc(auth.currentUser.uid).update({ job: job.name, pay: job.pay });
+        availableJobs.innerHTML = `<h2 style='color: orange;'>You are now hired as: ${job.name}!</h2><p>${job.desc}</p>`;
+        const paydayMinute = new Date().getMinutes();
+        localStorage.setItem("payday", paydayMinute.toString());
+        alert(`Your pay minute is ${paydayMinute}. Log in at this minute every hour to receive your paycheck!`);
+      };
+      if((job.name.includes("Janitor")&&Math.random()<0.5)||(job.name.includes("Chicken")&&Math.random()<0.125)||(job.name.includes("Itch")&&Math.random()<0.03125)){
+      availableJobs.appendChild(btn);
+      }
+    });
+  } else {
+    town.style.display = "block";
+    availableJobs.style.display = "none";
+    document.getElementById("shop").style.display = "block";
+    plantBtn.style.display = "block";
+    workBtn.textContent = "📋 Get a job";
   }
+
+  inTown = !inTown;
+});
+
+setInterval(async () => {
+  if (!auth.currentUser) return;
+  const userDoc = await usersRef.doc(auth.currentUser.uid).get();
+  const user = userDoc.data();
+  const payday = parseInt(localStorage.getItem("payday"));
+  const thisMinute = new Date().getMinutes();
+
+  const lastClaim = parseInt(localStorage.getItem("lastClaim")) || -1;
+
+  if (payday === thisMinute && lastClaim !== thisMinute) {
+    let pay = user.pay || 0;
+    embers += pay;
+    localStorage.setItem("embers", embers.toString());
+    localStorage.setItem("lastClaim", thisMinute.toString());
+    updateEnergyDisplay(energy, embers);
+    await msgsRef.add({
+      username: "🏦 Treasury",
+      rank: "Bot",
+      text: `${user.username} has been paid ${pay} ember${pay === 1 ? "" : "s"} for their job as ${user.job || "Worker"}.`,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+  }
+}, 60000);
+
+
 </script>
 
 <style>
@@ -559,6 +648,10 @@ html, body {
 #power { display: none; background-color: chartreuse; padding: 10px; }
 #message {
   width: 100%; max-width: 700px; min-height: 80px; padding: 8px; box-sizing: border-box;
+  }
+  
+  #workBtn{
+   display: none;
   }
 </style>
 </main>
