@@ -583,18 +583,19 @@ workBtn.addEventListener("click", async function () {
       availableJobs.appendChild(btn);
       }
     });
-  } else {
+  }else {
     town.style.display = "block";
     availableJobs.style.display = "none";
     document.getElementById("shop").style.display = "block";
-    if(userData.rank.includes("Admin")){
-    plantBtn.style.display = "block";
+    const userDoc = await usersRef.doc(auth.currentUser.uid).get();
+    const userData = userDoc.data();
+    if (userData.rank && userData.rank.includes("Admin")) {
+      plantBtn.style.display = "block";
     }
     workBtn.textContent = "📋 Get a job";
   }
-
-  inTown = !inTown;
-});
+  inTown = !inTown
+})
 
 setInterval(async () => {
   if (!auth.currentUser) return;
