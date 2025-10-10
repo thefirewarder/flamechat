@@ -22,6 +22,13 @@
     <div id="availableJobs">
     </div>
     <button id="workBtn" style="background-color: blue; width: 100px; height: 50px; color: white;">📋Get a job</button>
+    <button id="educationBtn" style="background-color: purple; width: 150px; height: 50px; color: white; display: none;">
+  🎓 Higher Education
+</button>
+
+    <div id="educationPage" style="display: none; color: white; padding: 10px;">
+      <button id="degree1"style="background-color: purple; width: 200px; height: 75px;">Get your Bachelor's Degree</button>
+</div>
     <div id="shopBtns" style="display: none;">
       <button id="adrBtn" style="width: 300px; height: 150px; background-color: red; color: orange;">
         Buy Adrenaline Rush (4 embers) — Spam rules become more lenient for you and you only for 10 minutes. Also, every message you send will be written in red.
@@ -44,6 +51,9 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
     <script>
+      let edu = parseInt(localStorage.getItem("edu")) || 0
+      let educationLevel = parseInt(localStorage.getItem("edu"))||0
+      const degree1 = document.getElementById("degree1")
 const availableJobs = document.getElementById("availableJobs")
 const workBtn = document.getElementById("workBtn")
 let emberTicket = document.getElementById("emberTicket")
@@ -184,6 +194,7 @@ document.getElementById("login").addEventListener("click", async () => {
     mutedUntil = currentUser.mutedUntil || 0;
 
     alert("✅ Logged in as " + currentUser.username);
+    document.getElementById("educationBtn").style.display="block"
       workBtn.style.display="block"
       grantDailyEmbers();
       embers = Number(localStorage.getItem("embers")) || 0;
@@ -264,6 +275,7 @@ async function sendMessage() {
 
   await msgsRef.add({
     halfLife: halfLife || null,
+    job: user.job,
     recipients: recipients,
     text,
     username: user.username,
@@ -273,7 +285,11 @@ async function sendMessage() {
 
   incEnergy(1);
   msgCount++;
-
+  let msae = parseInt(localStorage.getItem("msae"))
+  if(localStorage.getItem("msae")&&parseInt(localStorage.getItem("msae"))<100){
+    msae++
+    localStorage.setItem("msae",msae.toString())
+  }
   if (tooLongSingle || anyWordTooLong) {
     await deleteLastNMessages(user.username, 1);
     warn(auth.currentUser.uid, "use of nonsense words for spammy purposes");
@@ -332,7 +348,7 @@ function renderTown(messages) {
       if (currentUser && m.username === currentUser.username && currentUser.adrUntil > Date.now()) p.style.color = "red";
       const ts = m.createdAt?.toDate ? m.createdAt.toDate() : null;
       const when = ts ? ` · ${ts.toLocaleString()}` : "";
-      p.innerHTML = `<strong>${m.username}</strong> <em>(${m.rank || "Member"})</em>${when}<br>${escapeHtml(m.text || "")}`;
+      p.innerHTML = `<strong>${m.username}</strong> <em>(${m.rank+" " || "Member"})</em>${[" "+m.job||"Unemployed"]}${when}<br>${escapeHtml(m.text || "")}`
       messagesDiv.insertBefore(p, messagesDiv.firstChild);
     }
   });
@@ -554,11 +570,14 @@ workBtn.addEventListener("click", async function () {
     availableJobs.innerHTML = "<h2 style='color: orange;'>📋 Available Jobs</h2>";
 
     const jobs = [
-      { name: "Town Janitor", desc: "Pay: 1 ember/hour", pay: 1 },
-      { name: "Chicken Nugget Health Inspector", desc: "Pay: 3 embers/hour", pay: 3 },
-      { name: "Professional Itch Scratcher", desc: "Pay: 4 embers/hour", pay: 4 }
+      { name: "Town Janitor", desc: "Pay: 1 ember/hour", pay: 1, edu: 0},
+      { name: "Chicken Nugget Health Inspector", desc: "Pay: 3 embers/hour", pay: 3, edu: 0},
+      { name: "Professional Itch Scratcher", desc: "Pay: 4 embers/hour", pay: 4, edu: 0},
+      { name: "Teacher", desc: "Pay: 3 embers/hour", pay: 3, edu: 1},
+      { name: "Car Salesperson", desc: "Pay: 5 embers/hour", pay: 5, edu: 1},
+      { name: "Lab Scientist", desc: "Pay: 6 ember/hour", pay: 6, edu: 1},
     ];
-
+    
     jobs.forEach(job => {
       const btn = document.createElement("button");
       btn.textContent = `${job.name} — ${job.desc}`;
@@ -579,7 +598,7 @@ workBtn.addEventListener("click", async function () {
         localStorage.setItem("payday", paydayMinute.toString());
         alert(`Your pay minute is ${paydayMinute}. Log in at this minute every hour to receive your paycheck!`);
       };
-      if((job.name.includes("Janitor")&&Math.random()<0.5)||(job.name.includes("Chicken")&&Math.random()<0.125)||(job.name.includes("Itch")&&Math.random()<0.03125)){
+      if((job.name.includes("Janitor")&&Math.random()<0.5)||(job.name.includes("Chicken")&&Math.random()<0.125)||(job.name.includes("Itch")&&Math.random()<0.03125)&&edu>=job.edu){
       availableJobs.appendChild(btn);
       }
     });
@@ -621,7 +640,53 @@ setInterval(async () => {
   }
 }, 60000);
 
+const educationPage = document.getElementById("educationPage");
+let atEducation = false;
 
+document.getElementById("educationBtn").addEventListener("click",function(){
+  atEducation = !atEducation;
+  if (atEducation) {
+    town.style.display = "none";
+    power.style.display = "none";
+    availableJobs.style.display = "none";
+    shopBtns.style.display = "none";
+    educationPage.style.display = "block";
+    document.getElementById("educationBtn").textContent = "🏙️ Return to Town Square";
+  } else {
+    town.style.display = "block";
+    educationPage.style.display = "none";
+   document.getElementById("educationBtn").textContent = "🎓Higher Education";
+  }
+});
+  let timeStarted = null
+  let openWindow = null
+degree1.addEventListener("click",async function(){
+   let messagesSentAfterEnrollment = 0
+   localStorage.setItem("msae",messagesSentAfterEnrollment.toString())
+    alert("To get your bachelor's degree, send 100 messages over the course of 60 hours or more.")
+   await msgsRef.add({
+      username: "🎓Dean of Flamechat University",
+      rank: "Bot",
+      text: currentUser.username+" has began their study to get a bachelor's degree!",
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+    openWindow = Date.now()+216000000
+    localStorage.setItem("openWindow",openWindow.toString())
+})
+  async function checkForDegree(){
+    requestAnimationFrame(checkForDegree)
+    if(localStorage.getItem("msae")&&parseInt(localStorage.getItem("msae"))>=100&&Date.now()>localStorage.getItem("openWindow")){
+      localStorage.setItem("edu",1)
+      alert("You got your bachelor's degree! Log in again to use it!")
+      await msgsRef.add({
+      username: "🎓Dean of Flamechat University",
+      rank: "Bot",
+      text: currentUser.username+" has gotten their bachelor's degree!!!",
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+    }
+  }
+  checkForDegree()
 </script>
 
 <style>
