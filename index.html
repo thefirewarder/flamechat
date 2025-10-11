@@ -166,10 +166,17 @@ document.getElementById("signup").addEventListener("click", async () => {
     const allUsers = await usersRef.get();
     const rank = allUsers.size === 0 ? "Head Admin" : "Member";
 
-    await invitesRef.doc(uid).set({
-      email, username, rank, warnings: 0, banned: false, mutedUntil: 0, adrUntil: 0,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
+   await invitesRef.doc(uid).set({
+  email,
+  username,
+  rank,
+  warnings: 0,
+  banned: false,
+  mutedUntil: 0,
+  adrUntil: 0,
+  embers: 0, 
+  createdAt: firebase.firestore.FieldValue.serverTimestamp()
+});
 
     alert("✅ Signed up as " + username);
   } catch (err) {
@@ -198,8 +205,9 @@ document.getElementById("login").addEventListener("click", async () => {
     document.getElementById("educationBtn").style.display="block"
       workBtn.style.display="block"
       grantDailyEmbers();
-      embers = Number(localStorage.getItem("embers")) || 0;
+    embers = currentUser.embers || 0;
 updateEnergyDisplay(energy, embers);
+await usersRef.doc(currentUser.uid).update({ embers });
        document.getElementById("signup").style.display = "none";
     document.getElementById("login").style.display = "none";
     town.style.display = "block";
@@ -428,7 +436,7 @@ function grantDailyEmbers() {
   localStorage.setItem("streak", streak);
   localStorage.setItem("embers", embers);
   updateEnergyDisplay(energy, embers);
-
+  usersRef.doc(currentUser.uid).update({ embers });
 }
 
 
@@ -464,6 +472,7 @@ document.getElementById("adrBtn").addEventListener("click", async function() {
   if (embers >= 4) {
     embers -= 4;
     updateEnergyDisplay(energy, embers);
+    await usersRef.doc(currentUser.uid).update({ embers });
     localStorage.setItem("embers", embers.toString());
     adrUntil = Date.now() + (10 * 60 * 1000);
     localStorage.setItem("adrUntil", adrUntil);
@@ -483,6 +492,7 @@ emberTicket.addEventListener("click",async function(){
   if(embers >= 2){
     embers-=2
     updateEnergyDisplay(energy,embers)
+    await usersRef.doc(currentUser.uid).update({ embers });
     localStorage.setItem("embers",embers.toString())
     if(Math.ceil(Math.random()*10)===10){
       embers+=19
@@ -493,6 +503,7 @@ emberTicket.addEventListener("click",async function(){
     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
   })
       updateEnergyDisplay(energy,embers)
+      await usersRef.doc(currentUser.uid).update({ embers });
       localStorage.setItem("embers",embers.toString())
     }
     else{
@@ -633,6 +644,7 @@ setInterval(async () => {
     localStorage.setItem("embers", embers.toString());
     localStorage.setItem("lastClaim", thisMinute.toString());
     updateEnergyDisplay(energy, embers);
+    await usersRef.doc(currentUser.uid).update({ embers });
     await msgsRef.add({
       username: "🏦 Treasury",
       rank: "Bot",
