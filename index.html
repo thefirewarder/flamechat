@@ -8,7 +8,7 @@
 <body>
   <main>
     <h1 style="background-color: darkred; color: orange">
-      🔥 Flamechat - Secure Chatting Community Platform
+      🔥 Flamechat - Secure Chatting Community Platform`
     </h1>
     <button id="login">Log in</button>
     <button id="signup">Sign up</button>
@@ -71,6 +71,7 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
       const db = firebase.firestore();
       const usersRef = db.collection("users");
+      const invitesRef = db.collection("invites")
 const shopBtns = document.getElementById("shopBtns");
 let shopping = false;
 let mutedUntil = 0;
@@ -165,7 +166,7 @@ document.getElementById("signup").addEventListener("click", async () => {
     const allUsers = await usersRef.get();
     const rank = allUsers.size === 0 ? "Head Admin" : "Member";
 
-    await usersRef.doc(uid).set({
+    await invitesRef.doc(uid).set({
       email, username, rank, warnings: 0, banned: false, mutedUntil: 0, adrUntil: 0,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
@@ -348,7 +349,8 @@ function renderTown(messages) {
       if (currentUser && m.username === currentUser.username && currentUser.adrUntil > Date.now()) p.style.color = "red";
       const ts = m.createdAt?.toDate ? m.createdAt.toDate() : null;
       const when = ts ? ` · ${ts.toLocaleString()}` : "";
-      p.innerHTML = `<strong>${m.username}</strong> <em>(${m.rank+" " || "Member"})</em>${[" "+m.job||"Unemployed"]}${when}<br>${escapeHtml(m.text || "")}`
+      p.innerHTML = `<strong>${m.username}</strong> <em>(${m.rank|| "Member"})</em>${m.job?" "
+    +m.job:" Unemployed"}${when}<br>${escapeHtml(m.text || "")}`
       messagesDiv.insertBefore(p, messagesDiv.firstChild);
     }
   });
