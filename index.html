@@ -202,8 +202,8 @@ document.getElementById("login").addEventListener("click", async () => {
     mutedUntil = currentUser.mutedUntil || 0;
 
     alert("✅ Logged in as " + currentUser.username);
-    document.getElementById("educationBtn").style.display="block"
-      workBtn.style.display="block"
+    document.getElementById("educationBtn").style.display="inline-block"
+      workBtn.style.display="inline-block"
       grantDailyEmbers();
     embers = currentUser.embers || 0;
 updateEnergyDisplay(energy, embers);
@@ -212,8 +212,8 @@ await usersRef.doc(currentUser.uid).update({ embers });
     document.getElementById("login").style.display = "none";
     town.style.display = "block";
     adrUntil = parseFloat(localStorage.getItem("adrUntil"))||currentUser.adrUntil||0
-    document.getElementById("shop").style.display = "block";
-    if ((currentUser.rank || "").includes("Admin")) plantBtn.style.display = "block";
+    document.getElementById("shop").style.display = "inline-block";
+    if ((currentUser.rank || "").includes("Admin")) plantBtn.style.display = "inline-block";
   } catch (err) {
     alert("❌ " + err.message);
   }
@@ -622,7 +622,7 @@ workBtn.addEventListener("click", async function () {
     const userDoc = await usersRef.doc(auth.currentUser.uid).get();
     const userData = userDoc.data();
     if (userData.rank && userData.rank.includes("Admin")) {
-      plantBtn.style.display = "block";
+      plantBtn.style.display = "inline-block";
     }
     workBtn.textContent = "📋 Get a job";
   }
