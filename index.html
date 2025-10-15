@@ -293,6 +293,9 @@ async function sendMessage() {
   });
 
   incEnergy(1);
+  if(energy % 1000 === 0){
+    triggerMilestone()
+  }
   msgCount++;
   let msae = parseInt(localStorage.getItem("msae"))
   if(localStorage.getItem("msae")&&parseInt(localStorage.getItem("msae"))<100){
@@ -701,6 +704,62 @@ degree1.addEventListener("click",async function(){
     }
   }
   checkForDegree()
+  async function triggerMilestone(){
+    const eventRoll = Math.ceil(Math.random()*100)
+    let eventType = null
+    if(eventRoll <= 50){
+      eventType = 1
+       await msgsRef.add({
+      username: "Milestone Celebrator",
+      rank: "Bot",
+      text: "A milestone has been hit! An ember burst has been initiated! (50% chance). 25 embers have been given to every player currently online!💥",
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+       embers += 25;
+    localStorage.setItem("embers", embers.toString());
+    updateEnergyDisplay(energy, embers);
+    await usersRef.doc(currentUser.uid).update({ embers });
+    }
+    else if(eventRoll <= 80){
+      eventType = 2
+      await msgsRef.add({
+      username: "Milestone Celebrator",
+      rank: "Bot",
+      text: "A milestone has been hit! An ember blast has been initiated! (30% chance). 50 embers have been given to every player currently online!💥💥",
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+      embers += 50;
+    localStorage.setItem("embers", embers.toString());
+    updateEnergyDisplay(energy, embers);
+    await usersRef.doc(currentUser.uid).update({ embers });
+    }
+    else if(eventRoll <= 99){
+      eventType = 3
+      await msgsRef.add({
+      username: "Milestone Celebrator",
+      rank: "Bot",
+      text: "A milestone has been hit! An emberbomb has been dropped in the town square! (19% chance). 100 embers have been given to every player currently online! 💥💥💥",
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+      embers += 100;
+    localStorage.setItem("embers", embers.toString());
+    updateEnergyDisplay(energy, embers);
+    await usersRef.doc(currentUser.uid).update({ embers });
+    }
+    else{
+      eventType = 4
+      await msgsRef.add({
+      username: "Milestone Celebrator",
+      rank: "Bot",
+      text: "A milestone has been hit! An embernuke has been dropped in the town square! (1% chance). 200 embers have been given to every player currently online! 💥💥💥💥",
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+      embers += 200;
+    localStorage.setItem("embers", embers.toString());
+    updateEnergyDisplay(energy, embers);
+    await usersRef.doc(currentUser.uid).update({ embers });
+    }
+  }
 </script>
 
 <style>
