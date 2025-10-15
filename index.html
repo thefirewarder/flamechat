@@ -27,7 +27,7 @@
 </button>
 
     <div id="educationPage" style="display: none; color: white; padding: 10px;">
-      <button id="degree1"style="background-color: purple; width: 200px; height: 75px;">Get your Bachelor's Degree</button>
+      <button id="degree1" style="background-color: purple; width: 200px; height: 75px;">Get your Bachelor's Degree</button>
 </div>
     <div id="shopBtns" style="display: none;">
       <button id="adrBtn" style="width: 300px; height: 150px; background-color: red; color: orange;">
@@ -153,7 +153,6 @@ statsRef.onSnapshot(snap => {
   setEnergy(serverEnergy);
   lastSavedEnergy = serverEnergy;
 });
-
 document.getElementById("signup").addEventListener("click", async () => {
   try {
     const email = prompt("Enter email:");
@@ -593,31 +592,42 @@ workBtn.addEventListener("click", async function () {
       { name: "Car Salesperson", desc: "Pay: 5 embers/hour", pay: 5, edu: 1},
       { name: "Lab Scientist", desc: "Pay: 6 ember/hour", pay: 6, edu: 1},
     ];
-    
-    jobs.forEach(job => {
-      const btn = document.createElement("button");
-      btn.textContent = `${job.name} — ${job.desc}`;
-      Object.assign(btn.style, {
-        display: "block",
-        margin: "10px auto",
-        width: "400px",
-        height: "60px",
-        backgroundColor: "darkred",
-        color: "orange",
-        fontSize: "14px"
-      });
+   jobs.forEach(job => {
+  const btn = document.createElement("button");
+  btn.textContent = `${job.name} — ${job.desc}`;
+  Object.assign(btn.style, {
+    display: "block",
+    margin: "10px auto",
+    width: "400px",
+    height: "60px",
+    backgroundColor: "darkred",
+    color: "orange",
+    fontSize: "14px"
+  });
 
-      btn.onclick = async () => {
-        await usersRef.doc(auth.currentUser.uid).update({ job: job.name, pay: job.pay });
-        availableJobs.innerHTML = `<h2 style='color: orange;'>You are now hired as: ${job.name}!</h2><p>${job.desc}</p>`;
-        const paydayMinute = new Date().getMinutes();
-        localStorage.setItem("payday", paydayMinute.toString());
-        alert(`Your pay minute is ${paydayMinute}. Log in at this minute every hour to receive your paycheck!`);
-      };
-      if((job.name.includes("Janitor")&&Math.random()<0.5)||(job.name.includes("Chicken")&&Math.random()<0.125)||(job.name.includes("Itch")&&Math.random()<0.03125)&&edu>=job.edu){
-      availableJobs.appendChild(btn);
-      }
-    });
+  btn.onclick = async () => {
+    await usersRef.doc(auth.currentUser.uid).update({ job: job.name, pay: job.pay });
+    availableJobs.innerHTML = `<h2 style='color: orange;'>You are now hired as: ${job.name}!</h2><p>${job.desc}</p>`;
+    const paydayMinute = new Date().getMinutes();
+    localStorage.setItem("payday", paydayMinute.toString());
+    alert(`Your pay minute is ${paydayMinute}. Log in at this minute every hour to receive your paycheck!`);
+  };
+
+  const hasDegree = parseInt(localStorage.getItem("edu")) >= job.edu;
+
+  const allowed =
+    (
+      (job.name.includes("Janitor") && Math.random() < 0.5) ||
+      (job.name.includes("Chicken") && Math.random() < 0.125) ||
+      (job.name.includes("Itch") && Math.random() < 0.03125) ||
+      (job.name.includes("Teacher") && Math.random() < 0.6) ||
+      (job.name.includes("Car Salesperson") && Math.random() < 0.4) ||
+      (job.name.includes("Lab Scientist") && Math.random() < 0.2)
+    ) && hasDegree;
+
+  if (allowed) availableJobs.appendChild(btn);
+});
+
   }else {
     town.style.display = "block";
     availableJobs.style.display = "none";
@@ -677,89 +687,64 @@ document.getElementById("educationBtn").addEventListener("click",function(){
 });
   let timeStarted = null
   let openWindow = null
-degree1.addEventListener("click",async function(){
-   let messagesSentAfterEnrollment = 0
-   localStorage.setItem("msae",messagesSentAfterEnrollment.toString())
-    alert("To get your bachelor's degree, send 100 messages over the course of 60 hours or more.")
-   await msgsRef.add({
-      username: "🎓Dean of Flamechat University",
-      rank: "Bot",
-      text: currentUser.username+" has began their study to get a bachelor's degree!",
-      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-    });
-    openWindow = Date.now()+216000000
-    localStorage.setItem("openWindow",openWindow.toString())
-})
-  async function checkForDegree(){
-    requestAnimationFrame(checkForDegree)
-    if(localStorage.getItem("msae")&&parseInt(localStorage.getItem("msae"))>=100&&Date.now()>localStorage.getItem("openWindow")){
-      localStorage.setItem("edu",1)
-      alert("You got your bachelor's degree! Log in again to use it!")
-      await msgsRef.add({
-      username: "🎓Dean of Flamechat University",
-      rank: "Bot",
-      text: currentUser.username+" has gotten their bachelor's degree!!!",
-      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-    });
-    }
+let degreeInProgress = localStorage.getItem("degreeInProgress") === "true";
+let degreeEarned = localStorage.getItem("edu") === "1";
+let checkDegreeInterval;
+
+degree1.addEventListener("click", async function() {
+  if (degreeInProgress) {
+    alert("You're already studying for your bachelor's degree!");
+    return;
   }
-  checkForDegree()
-  async function triggerMilestone(){
-    const eventRoll = Math.ceil(Math.random()*100)
-    let eventType = null
-    if(eventRoll <= 50){
-      eventType = 1
-       await msgsRef.add({
-      username: "Milestone Celebrator",
-      rank: "Bot",
-      text: "A milestone has been hit! An ember burst has been initiated! (50% chance). 25 embers have been given to every player currently online!💥",
-      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-    });
-       embers += 25;
-    localStorage.setItem("embers", embers.toString());
-    updateEnergyDisplay(energy, embers);
-    await usersRef.doc(currentUser.uid).update({ embers });
-    }
-    else if(eventRoll <= 80){
-      eventType = 2
-      await msgsRef.add({
-      username: "Milestone Celebrator",
-      rank: "Bot",
-      text: "A milestone has been hit! An ember blast has been initiated! (30% chance). 50 embers have been given to every player currently online!💥💥",
-      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-    });
-      embers += 50;
-    localStorage.setItem("embers", embers.toString());
-    updateEnergyDisplay(energy, embers);
-    await usersRef.doc(currentUser.uid).update({ embers });
-    }
-    else if(eventRoll <= 99){
-      eventType = 3
-      await msgsRef.add({
-      username: "Milestone Celebrator",
-      rank: "Bot",
-      text: "A milestone has been hit! An emberbomb has been dropped in the town square! (19% chance). 100 embers have been given to every player currently online! 💥💥💥",
-      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-    });
-      embers += 100;
-    localStorage.setItem("embers", embers.toString());
-    updateEnergyDisplay(energy, embers);
-    await usersRef.doc(currentUser.uid).update({ embers });
-    }
-    else{
-      eventType = 4
-      await msgsRef.add({
-      username: "Milestone Celebrator",
-      rank: "Bot",
-      text: "A milestone has been hit! An embernuke has been dropped in the town square! (1% chance). 200 embers have been given to every player currently online! 💥💥💥💥",
-      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-    });
-      embers += 200;
-    localStorage.setItem("embers", embers.toString());
-    updateEnergyDisplay(energy, embers);
-    await usersRef.doc(currentUser.uid).update({ embers });
-    }
+  if (degreeEarned) {
+    alert("You already have your bachelor's degree!");
+    return;
   }
+
+  localStorage.setItem("msae", "0");
+  const openWindow = Date.now() + 216000000; 
+  localStorage.setItem("openWindow", openWindow.toString());
+  localStorage.setItem("degreeInProgress", "true");
+  degreeInProgress = true;
+
+  alert("🎓 To get your bachelor's degree, send 100 messages over the course of at least 60 hours.");
+
+  await msgsRef.add({
+    username: "🎓Dean of Flamechat University",
+    rank: "Bot",
+    text: currentUser.username + " has begun their study to get a bachelor's degree!",
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+  });
+});
+
+function startDegreeCheck() {
+  if (checkDegreeInterval) clearInterval(checkDegreeInterval);
+  checkDegreeInterval = setInterval(async () => {
+    const openWindow = parseFloat(localStorage.getItem("openWindow") || "0");
+    const msae = parseInt(localStorage.getItem("msae") || "0");
+    const edu = parseInt(localStorage.getItem("edu") || "0");
+
+    if (edu >= 1 || !degreeInProgress) return;
+
+    if (msae >= 100 && Date.now() > openWindow) {
+      localStorage.setItem("edu", "1");
+      localStorage.removeItem("degreeInProgress");
+      degreeInProgress = false;
+
+      alert("🎉 You got your bachelor's degree! Log in again to use it.");
+
+      await msgsRef.add({
+        username: "🎓Dean of Flamechat University",
+        rank: "Bot",
+        text: currentUser.username + " has graduated with a bachelor's degree!!!",
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+  }, 60000); 
+}
+
+startDegreeCheck();
+
 </script>
 
 <style>
